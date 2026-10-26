@@ -1036,6 +1036,9 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .maplibregl-ctrl-group button{width:38px!important;height:38px!important}
 .lmap .maplibregl-canvas{outline:none}
 
+.res-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%}
+.res-top em{font-style:normal;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.res-msg .link{font-weight:700;text-decoration:none}
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
  .top{padding-block:8px 4px}
@@ -2214,16 +2217,43 @@ function locateMe(){if(!navigator.geolocation){toast('Dein Gerät kann den Stand
 function mapCenter(){if(!MAP)return startLL();if(MK==='ml'){const c=MAP.getCenter();return [c.lat,c.lng]}const c=MAP.getCenter();return [c.lat,c.lng]}
 function mapBBox(){if(!MAP)return null;const b=MAP.getBounds();return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()]}
 let lastQ='';
-async function searchFood(q){const [la,ln]=mapCenter(),bb=mapBBox();
- const base=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${la}&lon=${ln}&limit=20&lang=de&location_bias_scale=0.6&zoom=14`;
- const tags='&osm_tag=amenity:restaurant&osm_tag=amenity:cafe&osm_tag=amenity:fast_food&osm_tag=amenity:bar&osm_tag=amenity:pub&osm_tag=amenity:ice_cream&osm_tag=amenity:biergarten&osm_tag=amenity:food_court&osm_tag=shop:bakery&osm_tag=shop:confectionery';
- const get=async u=>{const r=await fetch(u);if(!r.ok)throw new Error('search');const j=await r.json();return (j.features||[]).map(f=>{const p=f.properties||{},c=f.geometry.coordinates;
-  return {name:p.name||q,lat:c[1],lng:c[0],kind:KIND_DE[p.osm_value]||'',sub:[[p.street,p.housenumber].filter(Boolean).join(' '),p.district||p.city].filter(Boolean).join(', ')}}).filter(x=>x.name)};
- let res=bb?await get(base+tags+`&bbox=${bb.join(',')}`):[];if(!res.length)res=await get(base+tags);if(!res.length)res=await get(base);return res}
+const kmDist=(a,b,c,d)=>{const R=6371,t=x=>x*Math.PI/180,dl=t(c-a),dn=t(d-b);const h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const fmtKm=k=>k<1?Math.round(k*1000/10)*10+' m':(k<10?k.toFixed(1).replace('.',','):Math.round(k))+' km';
+const FOOD_PH='&osm_tag=amenity:restaurant&osm_tag=amenity:cafe&osm_tag=amenity:fast_food&osm_tag=amenity:bar&osm_tag=amenity:pub&osm_tag=amenity:ice_cream&osm_tag=amenity:biergarten&osm_tag=amenity:food_court&osm_tag=shop:bakery&osm_tag=shop:confectionery';
+const bboxAround=(la,ln,km)=>{const dLa=km/111,dLn=km/(111*Math.cos(la*Math.PI/180));return [ln-dLn,la-dLa,ln+dLn,la+dLa]};
+function phMap(j,q){return (j.features||[]).map(f=>{const p=f.properties||{},c=f.geometry.coordinates;return {name:p.name||'',lat:c[1],lng:c[0],kind:KIND_DE[p.osm_value]||'',sub:[[p.street,p.housenumber].filter(Boolean).join(' '),p.district||p.city||p.town||p.village].filter(Boolean).join(', ')}}).filter(x=>x.name)}
+async function phGet(u){const r=await fetch(u);if(!r.ok)throw new Error('search');return r.json()}
+async function findTown(word,la,ln){try{const j=await phGet(`https://photon.komoot.io/api/?q=${encodeURIComponent(word)}&lat=${la}&lon=${ln}&limit=3&lang=de&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&osm_tag=place:suburb`);
+ const f=(j.features||[]).find(f=>(f.properties.name||'').toLowerCase()===word.toLowerCase());return f?[f.geometry.coordinates[1],f.geometry.coordinates[0]]:null}catch(_){return null}}
+async function overpassFind(q,bb){const words=q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,' ').split(/\s+/).filter(w=>w.length>1);if(!words.length)return [];
+ const rx=words.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'')).join('.*');const [w,s,e,n]=bb,box=`(${s},${w},${n},${e})`;
+ const ql=`[out:json][timeout:12];(nwr["name"~"${rx}",i]["amenity"]${box};nwr["name"~"${rx}",i]["shop"~"bakery|confectionery|deli"]${box};);out center 25;`;
+ const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(ql),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)return [];const j=await r.json();
+ return (j.elements||[]).map(x=>{const t=x.tags||{},la=x.lat??x.center?.lat,ln=x.lon??x.center?.lon;return {name:t.name,lat:la,lng:ln,kind:KIND_DE[t.amenity]||KIND_DE[t.shop]||'',sub:[[t['addr:street'],t['addr:housenumber']].filter(Boolean).join(' '),t['addr:city']].filter(Boolean).join(', ')}}).filter(x=>x.name&&x.lat!=null)}
+let searchArea='';
+async function searchFood(q){
+ const home=startLL();let center=MAP&&(MK==='ml'?MAP.getZoom()>=10:MAP.getZoom()>=10)?mapCenter():home;let what=q.trim();searchArea='';
+ /* Ort in der Suche erkennen, z. B. „Pizza Aachen“ */
+ const low=what.toLowerCase();const city=Object.keys(CITIES).find(c=>new RegExp('(^|\\s)'+c.toLowerCase()+'($|\\s)').test(low));
+ if(city){center=CITIES[city];what=what.replace(new RegExp(city,'i'),'').trim()||what;searchArea=city}
+ else{const parts=what.split(/\s+/);if(parts.length>=2){const last=parts[parts.length-1];const t=await findTown(last,center[0],center[1]);if(t){center=t;what=parts.slice(0,-1).join(' ');searchArea=last}}}
+ const [la,ln]=center,near=list=>list.map(r=>({...r,km:kmDist(la,ln,r.lat,r.lng)})).sort((a,b)=>a.km-b.km);
+ const dedupe=list=>{const seen=new Set();return list.filter(r=>{const k=r.name.toLowerCase()+'|'+r.lat.toFixed(3)+'|'+r.lng.toFixed(3);if(seen.has(k))return false;seen.add(k);return true})};
+ const base=`https://photon.komoot.io/api/?q=${encodeURIComponent(what)}&lat=${la}&lon=${ln}&limit=25&lang=de&location_bias_scale=0.1&zoom=16`;
+ /* 1) Essen-Orte im Umkreis von 25 km */
+ const bb25=bboxAround(la,ln,25);
+ let res=near(phMap(await phGet(base+FOOD_PH+'&bbox='+bb25.join(',')),what));
+ /* 2) Alles mit dem Namen im Umkreis (falls anders eingetragen) */
+ if(!res.length)res=near(phMap(await phGet(base+'&bbox='+bb25.join(',')),what)).filter(r=>r.km<25);
+ /* 3) Genaue Namenssuche in der Umgebung */
+ if(!res.length){try{res=near(await overpassFind(what,bboxAround(la,ln,30))).filter(r=>r.km<35)}catch(_){}}
+ /* 4) Weiter weg, aber höchstens 80 km */
+ if(!res.length)res=near(phMap(await phGet(base+FOOD_PH),what)).filter(r=>r.km<80);
+ return dedupe(res).slice(0,15)}
 function clearResults(keepBox){resMk.forEach(m=>m.remove());resMk=[];RES=[];resSel=null;const c=$('#resCard');if(c)c.hidden=true;const l=$('#resList');if(l)l.hidden=true;if(!keepBox){const i=$('#mapQ');if(i)i.value='';const x=$('#mapClr');if(x)x.hidden=true}}
 function showResults(list){resMk.forEach(m=>m.remove());resMk=[];RES=list;
  list.forEach((r,i)=>{const el=document.createElement('div');el.className='rpin';el.innerHTML=`<span class="rdot"></span><span class="rlbl">${esc(r.name)}</span>`;resMk.push(mkMarker(r.lat,r.lng,el,false,()=>pickResult(i),true))});
- const ls=$('#resList');if(ls){ls.innerHTML=list.slice(0,6).map((r,i)=>`<button type="button" class="res-item" data-ri="${i}"><strong>${esc(r.name)}</strong><small>${esc([r.kind,r.sub].filter(Boolean).join(' · '))}</small></button>`).join('');ls.hidden=!list.length;
+ const ls=$('#resList');if(ls){ls.innerHTML=list.slice(0,8).map((r,i)=>`<button type="button" class="res-item" data-ri="${i}"><span class="res-top"><strong>${esc(r.name)}</strong>${r.km!=null?`<em>${fmtKm(r.km)}</em>`:''}</span><small>${esc([r.kind,r.sub].filter(Boolean).join(' · '))}</small></button>`).join('');ls.hidden=!list.length;
   ls.querySelectorAll('[data-ri]').forEach(b=>b.onclick=()=>pickResult(+b.dataset.ri))}
  fitPts(list.map(r=>[r.lat,r.lng]),16)}
 function pickResult(i){const r=RES[i];if(!r)return;resSel=i;const ls=$('#resList');if(ls)ls.hidden=true;setView(r.lat,r.lng,16);resCard(i)}
@@ -2278,7 +2308,7 @@ function renderFood(){
   q.oninput=()=>{clr.hidden=!q.value};
   clr.onclick=()=>{lastQ='';clearResults();q.focus()};
   $('#mapSearch').onsubmit=async e=>{e.preventDefault();const v=q.value.trim();if(!v)return;q.blur();lastQ=v;const ls=$('#resList');ls.hidden=false;ls.innerHTML='<p class="muted res-msg">Suche …</p>';
-   try{await loadMapLib();const list=await searchFood(v);if(!list.length){ls.innerHTML='<p class="muted res-msg">Nichts gefunden. Probier einen anderen Namen oder zoom woanders hin.</p>';return}showResults(list)}
+   try{await loadMapLib();const list=await searchFood(v);if(!list.length){const g=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v)}`;ls.innerHTML=`<div class="res-msg"><p class="muted" style="margin:0 0 8px">„${esc(v)}“ ist in den Kartendaten${searchArea?' in '+esc(searchArea):' in der Nähe'} nicht eingetragen.</p><a class="link" href="${g}" target="_blank" rel="noopener">In Google Maps suchen ↗</a><p class="muted" style="margin:8px 0 0;font-size:13px">Du kannst den Ort auch selbst setzen: Tippe auf „+ Spot“ und dann auf die Stelle in der Karte.</p></div>`;return}showResults(list)}
    catch(_){ls.innerHTML='<p class="muted res-msg">Die Suche hat gerade nicht geklappt. Prüfe deine Internetverbindung.</p>'}};
   if(placing)setTimeout(()=>q.focus(),50)}
 }
@@ -3070,7 +3100,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610262234';
+ const APP_V='202610262240';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
