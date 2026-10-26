@@ -939,6 +939,48 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .egg3d canvas{width:100%;height:100%;display:block;pointer-events:none}
 .egg.three.wob{animation:none}
 
+/* Schöne Tage: Bild */
+.day-card .thumb.has{border:0;padding:0;cursor:zoom-in;position:relative;background-repeat:no-repeat;background-color:var(--pink-soft);width:100%}
+.zoom-ic{position:absolute;right:5px;bottom:5px;width:24px;height:24px;border-radius:50%;background:rgb(0 0 0 / .45);color:#fff;display:grid;place-items:center}
+.zoom-ic svg{width:14px;height:14px}
+.frame-edit{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.frame{width:150px;height:150px;border-radius:18px;background-repeat:no-repeat;background-color:var(--pink-soft);cursor:grab;touch-action:none;box-shadow:inset 0 0 0 2px rgb(255 255 255 / .6);flex:none}
+.frame:active{cursor:grabbing}
+.frame-side{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1}
+.frame-ctl{display:flex;flex-direction:column;gap:6px}
+.zoomrow{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--muted)}
+.zoomrow input{flex:1;accent-color:var(--pink-deep)}
+.lightbox{position:absolute;inset:0;z-index:99;background:#141216;display:flex;flex-direction:column;animation:fade .2s}
+.lb-x{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));z-index:2;width:42px;height:42px;border-radius:50%;border:0;background:rgb(255 255 255 / .15);color:#fff;font-size:26px;line-height:1}
+.lb-stage{flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;touch-action:none}
+.lb-stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-select:none;transform-origin:center}
+.lb-cap{color:#f4eff0;padding:14px max(18px,env(safe-area-inset-left,0px)) calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:3px;background:linear-gradient(180deg,transparent,rgb(0 0 0 / .3))}
+.lb-cap small{color:var(--pink);font-weight:700}
+.lb-cap strong{font-size:19px}
+.lb-cap p{margin:2px 0 0;font-size:14.5px;opacity:.85}
+.lb-hint{font-size:12px;opacity:.5;margin-top:4px}
+
+/* Start-Animation */
+.splash{position:fixed;inset:0;z-index:1000;background:radial-gradient(circle at 50% 42%,#fff,var(--bg) 62%);display:grid;place-items:center;animation:spOut .5s ease 2.55s forwards;cursor:pointer}
+.sp-in{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sp-art{width:min(62vw,260px);overflow:visible}
+.sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart{transform-box:fill-box}
+.sp-a{animation:spA 1.5s cubic-bezier(.3,.1,.3,1) both}
+.sp-b{animation:spB 1.5s cubic-bezier(.3,.1,.3,1) both}
+.sp-wa,.sp-wb{transform-origin:50% 100%;animation:spWad .25s ease-in-out 6 alternate}
+.sp-wb{animation-delay:.12s}
+.sp-heart{transform-origin:50% 100%;animation:spHeart .7s cubic-bezier(.3,1.7,.5,1) 1.55s both}
+.sp-word{font-size:30px;font-weight:700;letter-spacing:.01em;color:var(--ink);animation:spWord .6s ease 1.7s both}
+.sp-word span{color:var(--pink-deep)}
+@keyframes spA{from{transform:translateX(-62px)}to{transform:none}}
+@keyframes spB{from{transform:translateX(62px)}to{transform:none}}
+@keyframes spWad{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}
+@keyframes spHeart{from{transform:scale(0) translateY(10px);opacity:0}to{transform:none;opacity:1}}
+@keyframes spWord{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes spOut{to{opacity:0;visibility:hidden}}
+.splash.skip{animation:spOut .25s ease forwards}
+@media (prefers-reduced-motion:reduce){.splash{animation-delay:.8s}.sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart,.sp-word{animation:none}}
+
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
  .top{padding-block:8px 4px}
@@ -986,6 +1028,10 @@ input[type=range]{accent-color:var(--ink);width:100%}
  #p-home{gap:6px}
 }
 </style>
+<div class="splash" id="splash" aria-hidden="true"><div class="sp-in">
+ <svg class="sp-art" viewBox="-30 -6 188 118"><ellipse class="sp-shadow" cx="64" cy="106" rx="56" ry="4.5" fill="rgb(59 54 64 / .12)"/>
+  <g class="sp-a"><g class="sp-wa"><g><ellipse cx="51" cy="103" rx="8.5" ry="4" fill="var(--beak)" transform="rotate(-8 51 103)"/><ellipse cx="40" cy="104.5" rx="7" ry="3.6" fill="var(--beak)"/><ellipse cx="37" cy="77" rx="24" ry="27" fill="var(--pg)" transform="rotate(22 37 77)"/><ellipse cx="47" cy="82" rx="13" ry="19.5" fill="var(--belly)" transform="rotate(22 47 82)"/><path d="M26 66 C16 74 15 88 21 96 C25 88 29 78 31 70 Z" fill="var(--pg)"/><circle cx="45" cy="42" r="18.5" fill="var(--pg)"/><path d="M45 30 C53 27 60 33 60 41 C60 50 53 56 46 55 C49 48 48 37 45 30 Z" fill="var(--belly)"/><path d="M57 39.5 L64.2 43 L57 46.5 C55.8 44.4 55.8 41.6 57 39.5 Z" fill="var(--beak)"/><path d="M49.5 38.5 Q52.5 41 55.5 38.5" fill="none" stroke="var(--pg)" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="52" cy="47.5" rx="3" ry="1.9" fill="var(--pink)"/><path d="M30 55 Q44 63 58 56 L57.5 61 Q44 68 30.5 60 Z" fill="var(--pink-deep)"/><path d="M33 58 L27 72 L32.5 71 L35.5 60 Z" fill="var(--pink-deep)"/></g></g></g><g class="sp-b"><g class="sp-wb"><g transform="translate(128 0) scale(-1 1)"><ellipse cx="51" cy="103" rx="8.5" ry="4" fill="var(--beak)" transform="rotate(-8 51 103)"/><ellipse cx="40" cy="104.5" rx="7" ry="3.6" fill="var(--beak)"/><ellipse cx="37" cy="77" rx="24" ry="27" fill="var(--pg)" transform="rotate(22 37 77)"/><ellipse cx="47" cy="82" rx="13" ry="19.5" fill="var(--belly)" transform="rotate(22 47 82)"/><path d="M26 66 C16 74 15 88 21 96 C25 88 29 78 31 70 Z" fill="var(--pg)"/><circle cx="45" cy="42" r="18.5" fill="var(--pg)"/><path d="M45 30 C53 27 60 33 60 41 C60 50 53 56 46 55 C49 48 48 37 45 30 Z" fill="var(--belly)"/><path d="M57 39.5 L64.2 43 L57 46.5 C55.8 44.4 55.8 41.6 57 39.5 Z" fill="var(--beak)"/><path d="M49.5 38.5 Q52.5 41 55.5 38.5" fill="none" stroke="var(--pg)" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="52" cy="47.5" rx="3" ry="1.9" fill="var(--pink)"/><path d="M41 24.5 Q40 18 44 16 Q42.5 20.5 44.5 24 Q46 19.5 50 19 Q46.5 22 47 25 Z" fill="var(--pg)"/></g></g></g><g class="sp-heart"><path transform="translate(54.00 8.00) scale(0.833)" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.7 4.5c2.1 0 3.6 1.1 4.3 2.4h2c.7-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.8 4.3 7.2C19.5 16.4 12 21 12 21z" fill="var(--pink-deep)"/></g></svg>
+ <div class="sp-word">Ping<span>paar</span></div></div></div>
 <div class="app" id="app">
   <header class="top">
     <button class="menu-btn" id="menuBtn" aria-label="Menü öffnen" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="menu-dot" id="menuDot" hidden></span></button>
@@ -1134,13 +1180,18 @@ function fromRows(rows){const shared={},pv=rows[privKey()]||{cals:[],events:[]};
  if(!st.cals.some(c=>!c.shared))st.cals.push({id:'privat-'+ME.id.slice(0,8),name:'Privat',color:'#6f8ea6',shared:false});return st}
 function save(){S.rev=Date.now();syncPush();try{updateBadges()}catch(_){}}
 function syncPush(){if(!sb||!COUPLE||!ME)return;clearTimeout(pushTimer);pushTimer=setTimeout(()=>{pushChain=pushChain.then(doPush).catch(e=>{console.error(e);toast('Speichern hat nicht geklappt. Prüfe deine Internetverbindung.')})},500)}
-async function doPush(){const imgs={},rows=dehydrate(toRows(),imgs),up=[];
- for(const k in imgs)if(!pushedImgs.has(k))up.push({couple_id:COUPLE,key:k,value:{d:imgs[k]},updated_by:ME.id});
- for(const k in rows){const j=JSON.stringify(rows[k]===undefined?null:rows[k]);if(pushed[k]!==j)up.push({couple_id:COUPLE,key:k,value:rows[k]===undefined?null:rows[k],updated_by:ME.id})}
- if(!up.length)return;
+let imgProgress=null;
+async function doPush(){const imgs={},rows=dehydrate(toRows(),imgs);let failed=0;
+ const todo=Object.keys(imgs).filter(k=>!pushedImgs.has(k));
+ for(let n=0;n<todo.length;n++){const k=todo[n];let ok=false;
+  for(let t=0;t<3&&!ok;t++){const {error}=await sb.from('couple_data').upsert([{couple_id:COUPLE,key:k,value:{d:imgs[k]},updated_by:ME.id}],{onConflict:'couple_id,key'});
+   if(!error){pushedImgs.add(k);ok=true}else if(t<2)await new Promise(r=>setTimeout(r,800*(t+1)))}
+  if(!ok)failed++;if(imgProgress)imgProgress(n+1,todo.length)}
+ const up=[];for(const k in rows){const j=JSON.stringify(rows[k]===undefined?null:rows[k]);if(pushed[k]!==j)up.push({couple_id:COUPLE,key:k,value:rows[k]===undefined?null:rows[k],updated_by:ME.id})}
  for(let i=0;i<up.length;i+=8){const part=up.slice(i,i+8);const {error}=await sb.from('couple_data').upsert(part,{onConflict:'couple_id,key'});if(error)throw error;
-  part.forEach(r=>{if(r.key.startsWith('img-'))pushedImgs.add(r.key);else pushed[r.key]=JSON.stringify(r.value)})}}
-async function flushPush(){clearTimeout(pushTimer);await (pushChain=pushChain.then(doPush).catch(()=>{}))}
+  part.forEach(r=>{pushed[r.key]=JSON.stringify(r.value)})}
+ if(failed){setTimeout(syncPush,15000);throw new Error('img_failed')}}
+async function flushPush(){clearTimeout(pushTimer);let ok=true;await (pushChain=pushChain.then(doPush).catch(()=>{ok=false}));return ok}
 async function refreshMembers(){const {data}=await sb.from('couple_members').select('user_id,slot').eq('couple_id',COUPLE);MEMBERS=data||[];
  const was=S.connected;S.connected=MEMBERS.length>=2;return was}
 async function loadCouple(){
@@ -1210,13 +1261,18 @@ function migrate(){const d=freshState();if(!S.act)S.act=d.act;if(!S.tasks)S.task
  if(S.spots.every(x=>x.ex)&&!S.spots.some(x=>x.status==='want'))S.spots=d.spots}
 
 const bigImg=v=>typeof v==='string'&&v.startsWith('data:image/')&&v.length>8000;
-function imgKey(v){let h=5381;for(let i=0;i<v.length;i+=5)h=((h<<5)+h+v.charCodeAt(i))|0;return 'img-'+(h>>>0).toString(36)+'-'+v.length.toString(36)}
+function imgKey(v){let h1=5381,h2=52711;for(let i=0;i<v.length;i++){const c=v.charCodeAt(i);h1=((h1<<5)+h1+c)|0;h2=((h2<<5)+h2^c)|0}return 'img-'+(h1>>>0).toString(36)+(h2>>>0).toString(36)+'-'+v.length.toString(36)}
 function dehydrate(o,out){if(Array.isArray(o))return o.map(x=>dehydrate(x,out));if(o&&typeof o==='object'){const r={};for(const k in o)r[k]=dehydrate(o[k],out);return r}if(bigImg(o)){const key=imgKey(o);out[key]=o;return 'imgref:'+key}return o}
 async function hydrate(o,col){const keys=new Set();(function walk(x){if(Array.isArray(x))x.forEach(walk);else if(x&&typeof x==='object')Object.values(x).forEach(walk);else if(typeof x==='string'&&x.startsWith('imgref:'))keys.add(x.slice(7))})(o);
  const got={};await Promise.all([...keys].map(async k=>{try{const d=await col.doc(k).get();if(d.exists){got[k]=d.data().d;pushedImgs.add(k)}}catch(_){}}));
  return (function fill(x){if(Array.isArray(x))return x.map(fill);if(x&&typeof x==='object'){const r={};for(const k in x)r[k]=fill(x[k]);return r}if(typeof x==='string'&&x.startsWith('imgref:'))return got[x.slice(7)]||null;return x})(o)}
 let tt;function toast(m){document.querySelectorAll('.toast').forEach(x=>x.remove());const el=document.createElement('div');el.className='toast';el.textContent=m;$('#app').appendChild(el);clearTimeout(tt);tt=setTimeout(()=>el.remove(),2200)}
-function readImage(file,max=1000){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const img=new Image();img.onload=()=>{const sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.82))};img.onerror=rej;img.src=r.result};r.readAsDataURL(file)})}
+async function readImage(file,max=1000){let src=null,url=null;
+ try{src=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(_){src=null}
+ if(!src){url=URL.createObjectURL(file);src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('img'));im.src=url})}
+ try{const w=src.width||src.naturalWidth,h=src.height||src.naturalHeight,sc=Math.min(1,max/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*sc));c.height=Math.max(1,Math.round(h*sc));
+  c.getContext('2d').drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.82)}
+ finally{if(src&&src.close)src.close();if(url)URL.revokeObjectURL(url)}}
 function cropImage(file){return new Promise(async res=>{
  let src;try{src=await readImage(file,1600)}catch(_){toast('Bild konnte nicht gelesen werden');return res(null)}
  const img=new Image();img.onload=()=>{let done=false;const finish=v=>{if(!done){done=true;res(v)}};
@@ -2097,7 +2153,9 @@ function spotSheet(s,lat,lng,nowVisited){
 }
 
 /* ================= WISH ================= */
-const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(_){return ''}};
+const host=u=>{try{const h=new URL(u).hostname.replace(/^www\./,'');return h.includes('.')?h:''}catch(_){return ''}};
+const isUrl=v=>/^(https?:\/\/)?[^\s\/]+\.[a-z]{2,}(\/\S*)?$/i.test(v.trim());
+function shopOf(w){if(w.shop)return {name:w.shop,url:''};if(!w.link)return {name:'',url:''};const h=host(w.link);if(h)return {name:h,url:w.link};return {name:w.link.replace(/^https?:\/\//i,''),url:''}}
 let wishWho='me';
 function renderWish(){
  const mine=wishWho==='me';const P=$('#p-wish');
@@ -2109,12 +2167,12 @@ function renderWish(){
  P.innerHTML=`<div class="page-head"><div><h2>Wünsche</h2><p>${mine?'Deine Liste. '+esc(S.partner.name)+' kann sie sehen.':'Was sich '+esc(S.partner.name)+' wünscht'}</p></div>${mine?'<button class="btn pink" id="addWish">+ Wunsch</button>':''}</div>
  ${seg}
  <p class="wl-hint">${heartSvg}${mine?'Tippe auf das Herz bei dem, was du dir am meisten wünschst.':'Mit Herz: wünscht sich '+esc(S.partner.name)+' am meisten.'}</p>
- ${list.length?`<div class="wl">${list.map(w=>{const h=host(w.link);return `<article class="wl-item ${w.fav?'fav':''}">
+ ${list.length?`<div class="wl">${list.map(w=>{const sh=shopOf(w);return `<article class="wl-item ${w.fav?'fav':''}">
   <div class="wl-img">${w.img?`<img src="${w.img}" alt="">`:penguin()}</div>
   <div class="wl-body"><strong>${esc(w.title)}</strong>
-   <div class="wl-meta">${w.price?`<b>${esc(w.price)}</b>`:''}${h?`<span>bei ${esc(h)}</span>`:''}</div>
+   <div class="wl-meta">${w.price?`<b>${esc(w.price)}</b>`:''}${sh.name?`<span>bei ${esc(sh.name)}</span>`:''}</div>
    ${w.note?`<p>${esc(w.note)}</p>`:''}
-   <div class="wl-foot">${w.link?`<a href="${esc(w.link)}" target="_blank" rel="noopener">Zum Shop ↗</a>`:''}${mine?`<button class="link" data-edit-wish="${w.id}">Bearbeiten</button>`:''}${w.ex?'<span class="example">Beispiel</span>':''}</div></div>
+   <div class="wl-foot">${sh.url?`<a href="${esc(sh.url)}" target="_blank" rel="noopener">Zum Shop ↗</a>`:''}${mine?`<button class="link" data-edit-wish="${w.id}">Bearbeiten</button>`:''}${w.ex?'<span class="example">Beispiel</span>':''}</div></div>
   ${mine?`<button class="wl-heart ${w.fav?'on':''}" data-fav="${w.id}" aria-pressed="${!!w.fav}" aria-label="Wünsche ich mir am meisten">${heartSvg}</button>`:w.fav?`<span class="wl-heart on ro" aria-label="Wünscht sich ${esc(S.partner.name)} am meisten">${heartSvg}</span>`:'<span></span>'}
  </article>`}).join('')}</div>`
  :`<div class="empty">${penguin()}<p>${mine?'Noch keine Wünsche. Was hättest du gern?':esc(S.partner.name)+' hat noch nichts eingetragen.'}</p></div>`}`;
@@ -2128,15 +2186,15 @@ function wishSheet(w){
  openSheet(`<h2>${w?'Wunsch bearbeiten':'Neuer Wunsch'}</h2>
   <div class="wl-form-img"><div class="wl-img" id="w-prev">${img?`<img src="${img}" alt="">`:penguin()}</div><label class="btn" for="w-img" style="cursor:pointer">${img?'Anderes Foto':'Foto hinzufügen'}</label><input id="w-img" type="file" accept="image/*" hidden></div>
   <div class="field"><label for="w-title">Was wünschst du dir?</label><input id="w-title" value="${esc(e.title)}" placeholder="z. B. Glätteisen"></div>
-  <div class="field"><label for="w-link">Link zum Shop</label><input id="w-link" type="url" value="${esc(e.link)}" placeholder="https://…"></div>
+  <div class="field"><label for="w-link">Wo gibt es das?</label><input id="w-link" value="${esc(shopOf(e).url||shopOf(e).name)}" placeholder="Link oder Laden, z. B. New Yorker" autocapitalize="sentences"><small class="muted">Einen Link zum Online-Shop einfügen oder einfach den Namen vom Laden schreiben.</small></div>
   <div class="two"><div class="field"><label for="w-price">Preis</label><input id="w-price" value="${esc(e.price)}" placeholder="ca. 50 €"></div><div class="field"><label for="w-note">Details</label><input id="w-note" value="${esc(e.note)}" placeholder="Farbe, Größe …"></div></div>
   <label class="radio"><input type="checkbox" id="w-fav" ${e.fav?'checked':''}> Wünsche ich mir am meisten</label>
   <div class="sheet-actions">${w?'<button class="btn danger" id="w-del">Löschen</button>':''}<button class="btn ghost" data-close>Abbrechen</button><button class="btn pink" id="w-save">Speichern</button></div>`,
  (sh,close)=>{
   sh.querySelector('#w-img').onchange=async ev=>{const f=ev.target.files[0];if(f){try{img=await readImage(f,600);sh.querySelector('#w-prev').innerHTML=`<img src="${img}" alt="">`}catch(_){toast('Bild konnte nicht gelesen werden')}}};
   sh.querySelector('#w-save').onclick=()=>{const title=sh.querySelector('#w-title').value.trim();if(!title){toast('Bitte einen Wunsch eingeben');return}
-   let link=sh.querySelector('#w-link').value.trim();if(link&&!/^https?:\/\//i.test(link))link='https://'+link;
-   const o={title,price:sh.querySelector('#w-price').value.trim(),link,note:sh.querySelector('#w-note').value.trim(),img,fav:sh.querySelector('#w-fav').checked,ex:false};
+   const where=sh.querySelector('#w-link').value.trim();let link='',shop='';if(where){if(isUrl(where))link=/^https?:\/\//i.test(where)?where:'https://'+where;else shop=where}
+   const o={title,price:sh.querySelector('#w-price').value.trim(),link,shop,note:sh.querySelector('#w-note').value.trim(),img,fav:sh.querySelector('#w-fav').checked,ex:false};
    if(w)Object.assign(w,o);else S.wishes.me.push({id:uid(),...o});save();renderWish();close();toast('Gespeichert')};
   const d=sh.querySelector('#w-del');if(d)d.onclick=()=>{S.wishes.me=S.wishes.me.filter(x=>x.id!==w.id);save();renderWish();close();toast('Gelöscht')};
  });
@@ -2156,21 +2214,27 @@ function renderPhoto(){
    <div id="storyImg" style="position:absolute;inset:0">${phFill(p,si)}</div>
    <button class="zone l" id="zPrev" aria-label="Vorheriges Foto"></button><button class="zone r" id="zNext" aria-label="Nächstes Foto"></button>
    <div class="meta"><div class="when" id="sWhen">${ago(p.date)}</div><div class="cap" id="sCap">${esc(p.caption)}</div></div></div>
-  <div class="tools"><button class="btn" id="sEdit">Bearbeiten</button><button class="btn" id="sWidget">Als Widget aufs Handy</button></div>`
+  <div class="tools"><button class="btn" id="sEdit">Bearbeiten</button></div>`
  :`<div class="empty">${penguin()}<p>Noch keine Fotos. Ladet euer erstes Erinnerungsfoto hoch.</p></div>`}
  <div class="page-head" style="padding-top:12px"><div><h2 style="font-size:23px">Besonders schöne Tage</h2><p>Tage, die ihr nie vergessen wollt</p></div><button class="btn" id="addDay">+ Tag</button></div>
  <div class="days">${S.days.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(d=>`
-  <article class="card day-card"><div class="thumb">${d.src?`<img src="${d.src}" alt="">`:penguin()}</div>
+  <article class="card day-card">${d.src?`<button class="thumb has" data-view-day="${d.id}" aria-label="Foto von ${esc(d.title)} groß ansehen" style="${dayBg(d)}"><span class="zoom-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M10.5 8v5M8 10.5h5"/></svg></span></button>`:`<div class="thumb">${penguin()}</div>`}
    <div style="min-width:0"><small>${fmt(d.date)}</small><strong>${esc(d.title)}</strong>${d.text?`<p>${esc(d.text)}</p>`:''}
    <div style="display:flex;gap:10px;align-items:center;margin-top:4px"><button class="link" data-edit-day="${d.id}">Bearbeiten</button>${d.ex?'<span class="example">Beispiel</span>':''}</div></div></article>`).join('')||'<p class="muted" style="margin:0">Noch keine Tage eingetragen.</p>'}</div>`;
- $('#ph-up').onchange=async ev=>{let k=0;for(const f of ev.target.files){try{S.photos.unshift({id:uid(),src:await readImage(f,1000),caption:'Neue Erinnerung',date:iso(new Date())});k++}catch(_){}}si=0;sp=0;save();renderPhoto();toast(k+' Foto'+(k===1?'':'s')+' hinzugefügt')};
+ $('#ph-up').onchange=async ev=>{const files=[...ev.target.files];ev.target.value='';if(!files.length)return;let k=0,bad=0;const added=[];
+  for(let n=0;n<files.length;n++){toast(`Foto ${n+1} von ${files.length} wird vorbereitet …`);try{added.push({id:uid(),src:await readImage(files[n],1000),caption:'Neue Erinnerung',date:iso(new Date())});k++}catch(_){bad++}}
+  if(k){S.photos=[...added.reverse(),...S.photos];si=0;sp=0;renderPhoto()}
+  if(!k){toast('Die Fotos konnten nicht gelesen werden. Versuch es mit JPG- oder PNG-Bildern.');return}
+  imgProgress=(i,t)=>toast(`Foto ${i} von ${t} wird hochgeladen …`);save();const ok=await flushPush();imgProgress=null;
+  toast(ok?(k+' Foto'+(k===1?'':'s')+' hinzugefügt'+(bad?`, ${bad} konnte${bad===1?'':'n'} nicht gelesen werden`:'')):'Ein paar Fotos hängen noch. Pingpaar versucht es gleich automatisch noch mal.')};
  $('#addDay').onclick=()=>daySheet();
  $('#p-photo').querySelectorAll('[data-edit-day]').forEach(b=>b.onclick=()=>daySheet(S.days.find(d=>d.id===b.dataset.editDay)));
+ $('#p-photo').querySelectorAll('[data-view-day]').forEach(b=>b.onclick=()=>dayViewer(S.days.find(d=>d.id===b.dataset.viewDay)));
  if(!n)return;
  $('#zPrev').onclick=()=>step(-1);$('#zNext').onclick=()=>step(1);
  const st=$('#story');let downAt=0;st.addEventListener('pointerdown',()=>{holding=true;downAt=Date.now()});['pointerup','pointercancel','pointerleave'].forEach(t=>st.addEventListener(t,()=>{holding=false}));
  st.addEventListener('click',e=>{if(Date.now()-downAt>350){e.stopPropagation();e.preventDefault()}},true);
- $('#sEdit').onclick=()=>photoSheet(S.photos[si]);$('#sWidget').onclick=widgetSheet;
+ $('#sEdit').onclick=()=>photoSheet(S.photos[si]);
 }
 function step(d){const n=S.photos.length;if(!n)return;si=(si+d+n)%n;sp=0;const p=S.photos[si];$('#storyImg').innerHTML=phFill(p,si);$('#sWhen').textContent=ago(p.date);$('#sCap').textContent=p.caption;document.querySelectorAll('#story .bars i').forEach((b,i)=>b.style.width=(i<si?100:0)+'%')}
 setInterval(()=>{if(holding||sheetOpen||view!=='photo'||!S.photos.length||!$('#story'))return;sp+=100;const bar=document.querySelectorAll('#story .bars i')[si];if(bar)bar.style.width=Math.min(100,sp/DUR*100)+'%';if(sp>=DUR)step(1)},100);
@@ -2191,19 +2255,55 @@ function widgetSheet(){
   <div class="sheet-actions"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pink" id="wg-save">Übernehmen</button></div>`,
  (sh,close)=>{sh.querySelector('#wg-save').onclick=()=>{S.widget=sh.querySelector('input[name=wmode]:checked').value;save();close();toast('Widget-Einstellung gespeichert')}});
 }
+function dayBg(d){const p=d.pos||{x:50,y:50,z:1,r:1};return `background-image:url(${d.src});background-size:${p.r>=1?`auto ${p.z*100}%`:`${p.z*100}% auto`};background-position:${p.x}% ${p.y}%`}
+function imgRatio(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i.naturalWidth/i.naturalHeight||1);i.onerror=()=>r(1);i.src=src})}
 function daySheet(d){
- const e=d||{title:'',date:iso(new Date()),text:'',src:null};let src=e.src;
+ const e=d||{title:'',date:iso(new Date()),text:'',src:null};let src=e.src,pos={x:50,y:50,z:1,r:1,...(e.pos||{})};
  openSheet(`<h2>${d?'Tag bearbeiten':'Besonders schöner Tag'}</h2>
   <div class="field"><label for="d-title">Was war das für ein Tag?</label><input id="d-title" value="${esc(e.title)}" placeholder="z. B. Erstes Date"></div>
-  <div class="two"><div class="field"><label for="d-date">Datum</label><input id="d-date" type="date" value="${e.date}"></div><div class="field"><label for="d-img">Foto</label><input id="d-img" type="file" accept="image/*"></div></div>
+  <div class="field"><label for="d-date">Datum</label><input id="d-date" type="date" value="${e.date}"></div>
+  <div class="field"><span class="lbl">Foto</span>
+   <div class="frame-edit"><div class="frame" id="d-frame" ${src?'':'hidden'}></div>
+    <div class="frame-side"><label class="btn" for="d-img" style="cursor:pointer;text-align:center" id="d-imgLbl">${src?'Anderes Foto':'Foto auswählen'}</label><input id="d-img" type="file" accept="image/*" hidden>
+     <div id="d-ctl" ${src?'':'hidden'} class="frame-ctl"><small class="muted">Ziehen zum Verschieben</small><label class="zoomrow"><span aria-hidden="true">−</span><input type="range" id="d-zoom" min="1" max="3" step="0.01" value="${pos.z}" aria-label="Zoom"><span aria-hidden="true">+</span></label></div></div></div></div>
   <div class="field"><label for="d-text">Beschreibung</label><textarea id="d-text" placeholder="Was ist passiert? Was wollt ihr nie vergessen?">${esc(e.text)}</textarea></div>
   <div class="sheet-actions">${d?'<button class="btn danger" id="d-del">Löschen</button>':''}<button class="btn ghost" data-close>Abbrechen</button><button class="btn pink" id="d-save">Speichern</button></div>`,
  (sh,close)=>{
-  sh.querySelector('#d-img').onchange=async ev=>{const f=ev.target.files[0];if(f){try{src=await readImage(f,800);toast('Foto geladen')}catch(_){toast('Foto konnte nicht gelesen werden')}}};
+  const fr=sh.querySelector('#d-frame'),zm=sh.querySelector('#d-zoom');
+  const paint=()=>{if(src)fr.style.cssText=dayBg({src,pos})};
+  (async()=>{if(src&&!(e.pos&&e.pos.r)){pos.r=await imgRatio(src)}paint()})();
+  let drag=null;
+  fr.addEventListener('pointerdown',ev=>{fr.setPointerCapture(ev.pointerId);drag={x:ev.clientX,y:ev.clientY}});
+  fr.addEventListener('pointermove',ev=>{if(!drag)return;const W=fr.clientWidth,H=fr.clientHeight;
+   const bw=pos.r>=1?H*pos.z*pos.r:W*pos.z,bh=pos.r>=1?H*pos.z:W*pos.z/pos.r,ox=Math.max(1,bw-W),oy=Math.max(1,bh-H);
+   pos.x=Math.min(100,Math.max(0,pos.x-(ev.clientX-drag.x)/ox*100));pos.y=Math.min(100,Math.max(0,pos.y-(ev.clientY-drag.y)/oy*100));drag={x:ev.clientX,y:ev.clientY};paint()});
+  ['pointerup','pointercancel'].forEach(t=>fr.addEventListener(t,()=>{drag=null}));
+  zm.oninput=()=>{pos.z=+zm.value;paint()};
+  sh.querySelector('#d-img').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;try{src=await readImage(f,1600);pos={x:50,y:50,z:1,r:await imgRatio(src)};zm.value=1;
+   fr.hidden=false;sh.querySelector('#d-ctl').hidden=false;sh.querySelector('#d-imgLbl').textContent='Anderes Foto';paint()}catch(_){toast('Foto konnte nicht gelesen werden')}};
   sh.querySelector('#d-save').onclick=()=>{const title=sh.querySelector('#d-title').value.trim();if(!title){toast('Bitte einen Titel eingeben');return}
-   const o={title,date:sh.querySelector('#d-date').value||e.date,text:sh.querySelector('#d-text').value.trim(),src,ex:false};if(d)Object.assign(d,o);else S.days.push({id:uid(),...o});save();renderPhoto();close();toast('Gespeichert')};
+   const o={title,date:sh.querySelector('#d-date').value||e.date,text:sh.querySelector('#d-text').value.trim(),src,pos:src?{...pos}:null,ex:false};if(d)Object.assign(d,o);else S.days.push({id:uid(),...o});save();renderPhoto();close();toast('Gespeichert')};
   const del=sh.querySelector('#d-del');if(del)del.onclick=()=>{S.days=S.days.filter(x=>x.id!==d.id);save();renderPhoto();close();toast('Gelöscht')};
  });
+}
+function dayViewer(d){if(!d||!d.src)return;
+ const o=document.createElement('div');o.className='lightbox';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label',d.title);
+ o.innerHTML=`<button class="lb-x" aria-label="Schließen">×</button><div class="lb-stage"><img src="${d.src}" alt="${esc(d.title)}" draggable="false"></div>
+  <div class="lb-cap"><small>${fmt(d.date)}</small><strong>${esc(d.title)}</strong>${d.text?`<p>${esc(d.text)}</p>`:''}<span class="lb-hint">Doppeltippen oder mit zwei Fingern zoomen</span></div>`;
+ $('#app').appendChild(o);const img=o.querySelector('img'),st=o.querySelector('.lb-stage');let z=1,tx=0,ty=0;
+ const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${z})`};
+ const clampT=()=>{const mx=(st.clientWidth*(z-1))/2,my=(st.clientHeight*(z-1))/2;tx=Math.max(-mx,Math.min(mx,tx));ty=Math.max(-my,Math.min(my,ty))};
+ const pts=new Map();let pinch=null,last=0;
+ st.addEventListener('pointerdown',e=>{st.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===2){const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z}}
+  else{const now=Date.now();if(now-last<300){z=z>1?1:2.5;tx=ty=0;img.style.transition='transform .25s';apply();setTimeout(()=>img.style.transition='',260)}last=now}});
+ st.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const p=pts.get(e.pointerId);
+  if(pts.size===1&&z>1){tx+=e.clientX-p.x;ty+=e.clientY-p.y;clampT();apply()}
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===2&&pinch){const [a,b]=[...pts.values()];z=Math.max(1,Math.min(5,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));clampT();apply()}});
+ const up=e=>{pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(z<=1){tx=ty=0;apply()}};st.addEventListener('pointerup',up);st.addEventListener('pointercancel',up);
+ st.addEventListener('wheel',e=>{e.preventDefault();z=Math.max(1,Math.min(5,z*Math.pow(1.0015,-e.deltaY)));clampT();apply()},{passive:false});
+ const close=()=>{o.remove();document.removeEventListener('keydown',k)};const k=e=>{if(e.key==='Escape')close()};document.addEventListener('keydown',k);
+ o.querySelector('.lb-x').onclick=close;
 }
 
 /* ================= CALENDAR ================= */
@@ -2299,13 +2399,11 @@ function settingsSheet(){
   <div class="field"><label for="s-since">Zusammen seit</label><input id="s-since" type="date" value="${S.since}"></div>`
   :`<div class="field"><span class="lbl">Partner</span><button class="btn pink" data-invite style="align-self:flex-start">Partner einladen</button></div>
   <div class="field"><label for="s-since">Zusammen seit</label><input id="s-since" type="date" value="${S.since}"></div>`}
-  <button class="btn" id="s-widget" style="align-self:flex-start">Widget für den Sperrbildschirm ansehen</button>
   <div class="field"><span class="lbl">Konto</span><span>${esc(ME?.email||'')}</span></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="s-logout">Abmelden</button><button class="btn" id="s-pw">Passwort ändern</button>${S.connected?'<button class="btn ghost" id="s-unlink">Verbindung trennen</button>':''}</div>
   ${EU_NOTE2}
   <div class="sheet-actions"><button class="btn danger" id="s-del">Konto löschen</button><button class="btn pink" id="s-save">Speichern</button></div>`,
  (sh,close)=>{
-  sh.querySelector('#s-widget').onclick=()=>{close();widgetPreview()};
   sh.querySelector('#s-meav').onchange=async e=>{const f=e.target.files[0];if(f){const c=await cropImage(f);e.target.value='';if(c){avMe=c;sh.querySelector('#avMe').innerHTML=av(avMe,'')}}};
   sh.querySelector('#s-save').onclick=()=>{S.me.name=sh.querySelector('#s-me').value.trim()||S.me.name;S.me.city=sh.querySelector('#s-mec').value;S.me.avatar=avMe;
    S.since=sh.querySelector('#s-since').value||S.since;save();renderAll();close();toast('Gespeichert')};
@@ -2775,10 +2873,10 @@ function openMenu(){if(menuOpen)return closeMenu();menuOpen=true;$('#menuBtn').s
   ${S.connected?`<div class="drawer-couple"><span class="mini">${mini(S.me)}${mini(S.partner)}</span><span>${esc(S.me.name)} &amp; ${esc(S.partner.name)} · ${days.toLocaleString('de-DE')} Tage</span></div>`:''}
   <nav>${PAGES.map(([k,l,ic])=>{const at=attention(),b=k==='question'?at.question:k==='pet'&&at.pet?'!':0;return `<button data-go="${k}" ${k===view?'aria-current="page"':''}>${svgI(ic)}<span class="nav-l">${l}</span>${b?`<span class="nav-b">${b}</span>`:''}</button>`}).join('')}
    <button class="yr-btn" id="menuYr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9zM5.5 15l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/></svg><span class="nav-l">Jahresrückblick ${new Date().getFullYear()}</span></button>
-   <button id="menuWidget"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M9.5 8h5M9 12.5h2.5v2.5H9zM13 12.5h2.5v2.5H13z"/></svg><span class="nav-l">Widget für den Sperrbildschirm</span></button></nav>
+</nav>
   <button class="set" id="menuSet">${svgI('set')}Profil & Einstellungen</button>`;
  const sc=document.createElement('div');sc.className='drawer-scrim';sc.onclick=closeMenu;$('#app').appendChild(sc);$('#app').appendChild(d);
- d.querySelector('#drawerX').onclick=closeMenu;d.querySelector('#menuYr').onclick=()=>{closeMenu();yearReview()};d.querySelector('#menuWidget').onclick=()=>{closeMenu();widgetPreview()};d.querySelector('#menuSet').onclick=()=>{closeMenu();settingsSheet()};
+ d.querySelector('#drawerX').onclick=closeMenu;d.querySelector('#menuYr').onclick=()=>{closeMenu();yearReview()};d.querySelector('#menuSet').onclick=()=>{closeMenu();settingsSheet()};
  const cur=d.querySelector('[aria-current]')||d.querySelector('nav button');cur&&cur.focus({preventScroll:true})}
 $('#menuBtn').onclick=openMenu;
 function go(k){closeMenu();view=k;document.querySelectorAll('.pager .page').forEach(s=>{s.hidden=s.id!=='p-'+k});const pg=$('#p-'+k);if(pg)pg.scrollTop=0;
@@ -2792,6 +2890,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuOpen)closeMenu(
 $('#logoPeng').innerHTML=kissMark();
 
 function renderAll(){renderHome();renderKnow();renderIdea();renderPet();renderFood();renderWish();renderPhoto();renderCal();updateBadges();renderStreakChip()}
+{const sp=document.getElementById('splash');if(sp){sp.onclick=()=>sp.classList.add('skip');setTimeout(()=>sp.remove(),3200)}}
 renderAll();
 if(!sb)showOnb('setup');
 else{
