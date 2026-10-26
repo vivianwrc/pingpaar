@@ -2145,15 +2145,16 @@ function pinHtml(s){const sel=foodSel===s.id,want=s.status==='want';
 let lfLoading=null;function loadLeaflet(){if(window.L)return Promise.resolve();if(!lfLoading)lfLoading=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='vendor/leaflet.js';sc.onload=res;sc.onerror=()=>{lfLoading=null;rej()};document.head.appendChild(sc)});return lfLoading}
 function ensureMap(){if(LM||typeof L==='undefined')return;LMel=document.createElement('div');LMel.className='lmap';
  const c=CITIES[S.me.city]||[50.94,6.96];
- LM=L.map(LMel,{zoomControl:false,attributionControl:true,tap:true}).setView(c,13);
- L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'}).addTo(LM);
+ LM=L.map(LMel,{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:0.5,wheelPxPerZoomLevel:90}).setView(c,13);
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,keepBuffer:4,updateWhenZooming:false,crossOrigin:true,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'}).addTo(LM);
  L.control.zoom({position:'topright',zoomInTitle:'Hineinzoomen',zoomOutTitle:'Herauszoomen'}).addTo(LM);
  LMlayer=L.layerGroup().addTo(LM);
+ let rsT=0;new ResizeObserver(()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(!LMel.clientWidth||!LMel.clientHeight)return;LM.invalidateSize({pan:false});if(!LMfit){fitSpots();LMfit=true}},60)}).observe(LMel);
  LM.on('click',e=>{if(!placing)return;placing=false;renderFood();spotSheet(null,e.latlng.lat,e.latlng.lng)})}
 function drawPins(){if(!LM)return;LMlayer.clearLayers();shownSpots().forEach(s=>{if(s.lat==null||s.lng==null)return;const sel=foodSel===s.id;
  const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'lpin',html:pinHtml(s),iconSize:sel?[40,52]:[34,44],iconAnchor:sel?[20,49]:[17,42]}),zIndexOffset:sel?1000:0,title:s.name,keyboard:true});
  m.on('click',()=>{foodSel=s.id;renderFood()});LMlayer.addLayer(m)})}
-function fitSpots(){const pts=shownSpots().filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]);if(pts.length>1)LM.fitBounds(pts,{padding:[36,36],maxZoom:15});else if(pts.length===1)LM.setView(pts[0],15);else LM.setView(CITIES[S.me.city]||[50.94,6.96],13)}
+function fitSpots(){if(!LMel||!LMel.clientWidth)return;LM.invalidateSize({pan:false});const pts=shownSpots().filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]);if(pts.length>1)LM.fitBounds(pts,{padding:[36,36],maxZoom:15});else if(pts.length===1)LM.setView(pts[0],15);else LM.setView(CITIES[S.me.city]||[50.94,6.96],13)}
 function locateMe(){if(!navigator.geolocation){toast('Dein Gerät kann den Standort nicht bestimmen.');return}toast('Standort wird gesucht …');
  navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(meDot)meDot.remove();meDot=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#4a90e2',fillOpacity:1}).addTo(LM);LM.setView(ll,15)},
   ()=>toast('Standort nicht erlaubt. Du kannst es in den Einstellungen deines Handys erlauben.'),{enableHighAccuracy:true,timeout:10000})}
@@ -2189,10 +2190,10 @@ function renderFood(){
  P.querySelectorAll('[data-been]').forEach(b=>b.onclick=()=>{const s=S.spots.find(x=>x.id===b.dataset.been);spotSheet(s,null,null,true)});
  $('#addSpot').onclick=()=>{foodView='map';placing=true;renderFood()};
  const c=$('#cancelPlace');c&&(c.onclick=()=>{placing=false;renderFood()});
- const slot=$('#mapSlot');if(slot){ensureMap();
+ const slot=$('#mapSlot');if(slot&&view==='food'){ensureMap();
   if(!LM&&!window.L){slot.innerHTML='<p class="muted" style="padding:16px">Karte wird geladen …</p>';loadLeaflet().then(()=>{if($('#mapSlot'))renderFood()},()=>{const s2=$('#mapSlot');if(s2)s2.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden. Prüfe deine Internetverbindung.</p>'})}
   else if(!LM){slot.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden.</p>'}
-  else{slot.appendChild(LMel);LMel.classList.toggle('placing',placing);setTimeout(()=>{LM.invalidateSize();if(!LMfit){fitSpots();LMfit=true}},0);setTimeout(()=>LM.invalidateSize(),350);drawPins();
+  else{if(LMel.parentNode!==slot)slot.appendChild(LMel);LMel.classList.toggle('placing',placing);drawPins();
    $('#mapLoc').onclick=locateMe;$('#mapFit').onclick=fitSpots}}
  const ff=$('#findForm');if(ff){$('#findQ').focus({preventScroll:true});ff.onsubmit=async e=>{e.preventDefault();const q=$('#findQ').value.trim();if(!q)return;const out=$('#findOut');out.innerHTML='<p class="muted" style="margin:0">Suche …</p>';
   try{findRes=await findPlaces(q);out.innerHTML=findRes.length?findRes.map((x,i)=>{const l=placeLabel(x);return `<button class="find-item" data-fi="${i}"><strong>${esc(l.name)}</strong><small>${esc(l.sub)}</small></button>`}).join(''):'<p class="muted" style="margin:0">Nichts gefunden. Probier es mit Stadt dazu, z. B. „Name Köln“.</p>';
@@ -2959,7 +2960,7 @@ function openMenu(){if(menuOpen)return closeMenu();menuOpen=true;$('#menuBtn').s
  const cur=d.querySelector('[aria-current]')||d.querySelector('nav button');cur&&cur.focus({preventScroll:true})}
 $('#menuBtn').onclick=openMenu;
 function go(k){closeMenu();view=k;document.querySelectorAll('.pager .page').forEach(s=>{s.hidden=s.id!=='p-'+k});const pg=$('#p-'+k);if(pg)pg.scrollTop=0;
- if(k==='pet')renderPet();if(k==='question')renderKnow();if(k==='photo'){sp=0}
+ if(k==='pet')renderPet();if(k==='question')renderKnow();if(k==='food')renderFood();if(k==='photo'){sp=0}
  if(P3){if(k==='pet')P3.start();else P3.stop()}
  if(k==='pet'){snowStart();setTimeout(()=>view==='pet'&&petSay(),900)}else snowStop()
  updateBadges()}
@@ -2987,7 +2988,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610262211';
+ const APP_V='202610262218';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
