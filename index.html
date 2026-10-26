@@ -1042,6 +1042,7 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .visits{display:flex;flex-direction:column;gap:6px}
 .vrow{display:flex;gap:6px;align-items:center}
 .vrow input{flex:1;min-width:0}
+.pushrow{display:flex;flex-direction:column;gap:8px;align-items:flex-start}.pushrow span{font-size:14.5px;line-height:1.4}
 .vdel{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--paper);font-size:18px;line-height:1;color:var(--muted);flex:none}
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
@@ -1239,11 +1240,53 @@ const persp=o=>SLOT==='b'?swapP(o):o;
 const privKey=()=>'priv:'+ME.id;
 function fillImgs(x){if(Array.isArray(x))return x.map(fillImgs);if(x&&typeof x==='object'){const r={};for(const k in x)r[k]=fillImgs(x[k]);return r}if(typeof x==='string'&&x.startsWith('imgref:'))return imgCache[x.slice(7)]||null;return x}
 function refsOf(x,set=new Set()){if(Array.isArray(x))x.forEach(y=>refsOf(y,set));else if(x&&typeof x==='object')Object.values(x).forEach(y=>refsOf(y,set));else if(typeof x==='string'&&x.startsWith('imgref:'))set.add(x.slice(7));return set}
+/* Bilder liegen im Supabase-Dateispeicher (Ordner pro Paar). Ältere Bilder in der Datenbank werden im Hintergrund dorthin umgezogen. */
+const BUCKET='pingpaar';let storeOk=null,migrating=false;
+const imgPath=k=>COUPLE+'/'+k;
+function d2blob(d){const i=d.indexOf(','),mime=d.slice(5,i).split(';')[0]||'image/jpeg',bin=atob(d.slice(i+1)),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);return new Blob([u],{type:mime})}
+const blob2d=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
+const noBucket=e=>/bucket not found|row-level security|not authorized|unauthorized/i.test((e&&(e.message||e.error))||'');
+async function storeUp(k,d){const b=d2blob(d);const {error}=await sb.storage.from(BUCKET).upload(imgPath(k),b,{upsert:true,contentType:b.type,cacheControl:'31536000'});if(error)throw error;storeOk=true}
+async function storeGet(k){try{const {data,error}=await sb.storage.from(BUCKET).download(imgPath(k));if(error||!data||!data.size)return null;
+ const b=data.type&&data.type.startsWith('image/')?data:new Blob([data],{type:'image/jpeg'});const v=await blob2d(b);return typeof v==='string'&&v.startsWith('data:image/')?v:null}catch(_){return null}}
+async function pool(list,n,fn){let i=0;await Promise.all(Array.from({length:Math.min(n,list.length)},async()=>{while(i<list.length){const x=list[i++];try{await fn(x)}catch(_){}}}))}
 async function fetchImgs(keys){let need=[...keys].filter(k=>!(k in imgCache));if(!need.length)return;
  await Promise.all(need.map(async k=>{const v=await IDB.get('img',k);if(v){imgCache[k]=v;pushedImgs.add(k)}}));
- need=need.filter(k=>!(k in imgCache));
+ need=need.filter(k=>!(k in imgCache));if(!need.length)return;
+ if(storeOk!==false)await pool(need,6,async k=>{const v=await storeGet(k);if(v){imgCache[k]=v;pushedImgs.add(k);IDB.put('img',k,v)}});
+ need=need.filter(k=>!(k in imgCache));if(!need.length)return;
+ // noch nicht umgezogene Bilder aus der Datenbank
  await Promise.all(Array.from({length:Math.ceil(need.length/12)},(_,i)=>need.slice(i*12,i*12+12)).map(async part=>{
   const {data}=await sb.from('couple_data').select('key,value').eq('couple_id',COUPLE).in('key',part);(data||[]).forEach(r=>{const v=r.value&&r.value.d;imgCache[r.key]=v;pushedImgs.add(r.key);if(v)IDB.put('img',r.key,v)})}))}
+/* Umzug: Bild hochladen, wieder herunterladen und vergleichen. Erst wenn beides gleich ist, wird die alte Kopie gelöscht. */
+async function migrateImgs(){if(migrating||!sb||!COUPLE||storeOk===false)return;migrating=true;const cid=COUPLE;let moved=0;
+ try{const {data,error}=await sb.from('couple_data').select('key').eq('couple_id',cid).like('key','img-%');if(error||!data||!data.length)return;
+  for(const {key:k} of data){if(COUPLE!==cid)break;
+   const {data:r}=await sb.from('couple_data').select('value').eq('couple_id',cid).eq('key',k).maybeSingle();const v=r&&r.value&&r.value.d;
+   if(typeof v!=='string'||!v.startsWith('data:image/'))continue;
+   try{await storeUp(k,v)}catch(e){if(noBucket(e)){storeOk=false;return}continue}
+   const back=await storeGet(k);if(back!==v)continue;
+   const {error:de}=await sb.from('couple_data').delete().eq('couple_id',cid).eq('key',k);if(!de)moved++}
+ }catch(e){console.error(e)}finally{migrating=false;if(moved)console.log('Bilder umgezogen:',moved)}}
+async function wipeImgs(){if(!sb||!COUPLE||MEMBERS.length>=2)return;try{const b=sb.storage.from(BUCKET);for(let i=0;i<50;i++){const {data}=await b.list(COUPLE,{limit:100});if(!data||!data.length)break;const {error}=await b.remove(data.map(f=>COUPLE+'/'+f.name));if(error)break}}catch(_){}}
+/* Benachrichtigungen (Web Push): bisher nur „Herz bekommen“ */
+const VAPID=CFG.vapidPublicKey||'';
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>{try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(_){return false}};
+const pushSupported=()=>!!VAPID&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const u8key=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
+async function pushSub(){try{const reg=await navigator.serviceWorker.getRegistration();return reg?await reg.pushManager.getSubscription():null}catch(_){return null}}
+async function pushState(){if(!VAPID)return 'none';if(isIOS&&!standalone()&&!pushSupported())return 'install';if(!pushSupported())return 'unsupported';
+ if(Notification.permission==='denied')return 'denied';return Notification.permission==='granted'&&await pushSub()?'on':'off'}
+async function saveSub(s){const j=s.toJSON();const {error}=await sb.rpc('save_push_sub',{ep:j.endpoint,k:j.keys.p256dh,a:j.keys.auth});if(error)throw error}
+async function pushOn(){const perm=await Notification.requestPermission();if(perm!=='granted')return false;
+ const reg=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rej)=>setTimeout(()=>rej(new Error('sw')),8000))]);
+ let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8key(VAPID)});
+ await saveSub(s);return true}
+async function pushOff(){const s=await pushSub();if(s){try{await sb.rpc('delete_push_sub',{ep:s.endpoint})}catch(_){}try{await s.unsubscribe()}catch(_){}}}
+async function syncPushSub(){try{if(!sb||!ME||!pushSupported()||Notification.permission!=='granted')return;const s=await pushSub();if(s)await saveSub(s)}catch(_){}}
+async function unlinkPushSub(){try{const s=pushSupported()?await pushSub():null;if(s)await sb.rpc('delete_push_sub',{ep:s.endpoint})}catch(_){}}
+function notifyHeart(){if(!sb||!COUPLE||!VAPID)return;try{sb.functions.invoke('notify',{body:{kind:'heart',name:S.me.name||''}}).catch(()=>{})}catch(_){}}
 /* Gemeinsame Daten -> Zeilen in der Datenbank (aus Sicht von Platz a) */
 function toRows(){const shared={};for(const k in S)if(!LOCAL_KEYS.includes(k))shared[k]=S[k];
  const privC=(S.cals||[]).filter(c=>!c.shared),privIds=new Set(privC.map(c=>c.id));
@@ -1258,8 +1301,10 @@ let imgProgress=null;
 async function doPush(){const imgs={},rows=dehydrate(toRows(),imgs);let failed=0;
  const todo=Object.keys(imgs).filter(k=>!pushedImgs.has(k));
  for(let n=0;n<todo.length;n++){const k=todo[n];let ok=false;
-  for(let t=0;t<3&&!ok;t++){const {error}=await sb.from('couple_data').upsert([{couple_id:COUPLE,key:k,value:{d:imgs[k]},updated_by:ME.id}],{onConflict:'couple_id,key'});
-   if(!error){pushedImgs.add(k);ok=true}else if(t<2)await new Promise(r=>setTimeout(r,800*(t+1)))}
+  for(let t=0;t<3&&!ok;t++){let error=null;
+   if(storeOk!==false){try{await storeUp(k,imgs[k])}catch(e){if(noBucket(e)){storeOk=false;t--;continue}error=e}}
+   else ({error}=await sb.from('couple_data').upsert([{couple_id:COUPLE,key:k,value:{d:imgs[k]},updated_by:ME.id}],{onConflict:'couple_id,key'}));
+   if(!error){pushedImgs.add(k);IDB.put('img',k,imgs[k]);ok=true}else if(t<2)await new Promise(r=>setTimeout(r,800*(t+1)))}
   if(!ok)failed++;if(imgProgress)imgProgress(n+1,todo.length)}
  const up=[];for(const k in rows){const j=JSON.stringify(rows[k]===undefined?null:rows[k]);if(pushed[k]!==j)up.push({couple_id:COUPLE,key:k,value:rows[k]===undefined?null:rows[k],updated_by:ME.id})}
  for(let i=0;i<up.length;i+=8){const part=up.slice(i,i+8);const {error}=await sb.from('couple_data').upsert(part,{onConflict:'couple_id,key'});if(error)throw error;
@@ -1276,7 +1321,7 @@ async function loadCouple(){
  await fetchImgs(refsOf(obj));
  const st=fromRows(obj);S=Object.assign(freshState(),st,{account:{email:ME.email},loggedIn:true,inviteCode:c?c.invite_code:null,demo:false});
  try{S.lastIncoming=localStorage.getItem('pp-li-'+ME.id)||null}catch(_){}
- await refreshMembers();migrate();subscribe();cacheSave();return true}
+ await refreshMembers();migrate();subscribe();cacheSave();setTimeout(migrateImgs,3000);setTimeout(syncPushSub,1500);return true}
 function subscribe(){if(chan)sb.removeChannel(chan);
  chan=sb.channel('couple-'+COUPLE)
   .on('postgres_changes',{event:'*',schema:'public',table:'couple_data',filter:'couple_id=eq.'+COUPLE},onRemote)
@@ -2040,7 +2085,7 @@ function makePet3D(stage){
 
 function sendHearts(){
  if(!S.connected){toast('Lade zuerst deinen Partner ein, dann kannst du Herzen schicken.');return}
- S.heartsSent=(S.heartsSent||0)+1;logHeart('hearts',7);did();save();
+ S.heartsSent=(S.heartsSent||0)+1;logHeart('hearts',7);did();save();notifyHeart();
  const btn=$('#heartBtn'),app=$('#app');const r=btn.getBoundingClientRect(),a=app.getBoundingClientRect();
  if(!reduced())for(let i=0;i<7;i++){const h=document.createElement('span');h.className='fly';const s=14+Math.random()*16;
   h.style.cssText=`left:${r.left-a.left+r.width/2-s/2}px;top:${r.top-a.top}px;width:${s}px;height:${s}px;--dx:${(Math.random()*140-70).toFixed(0)}px;animation-delay:${i*70}ms`;h.innerHTML=heartSvg;app.appendChild(h);setTimeout(()=>h.remove(),1600)}
@@ -2601,6 +2646,7 @@ function settingsSheet(){
   <div class="field"><label for="s-since">Zusammen seit</label><input id="s-since" type="date" value="${S.since}"></div>`
   :`<div class="field"><span class="lbl">Partner</span><button class="btn pink" data-invite style="align-self:flex-start">Partner einladen</button></div>
   <div class="field"><label for="s-since">Zusammen seit</label><input id="s-since" type="date" value="${S.since}"></div>`}
+  ${VAPID?'<div class="field"><span class="lbl">Benachrichtigungen</span><div class="pushrow" id="s-push"><small class="muted">Einen Moment …</small></div></div>':''}
   <div class="field"><span class="lbl">Konto</span><span>${esc(ME?.email||'')}</span></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="s-logout">Abmelden</button><button class="btn" id="s-pw">Passwort ändern</button>${S.connected?'<button class="btn ghost" id="s-unlink">Verbindung trennen</button>':''}</div>
   ${EU_NOTE2}
@@ -2610,11 +2656,22 @@ function settingsSheet(){
   sh.querySelector('#s-save').onclick=()=>{S.me.name=sh.querySelector('#s-me').value.trim()||S.me.name;S.me.city=sh.querySelector('#s-mec').value;S.me.avatar=avMe;
    S.since=sh.querySelector('#s-since').value||S.since;save();renderAll();close();toast('Gespeichert')};
   sh.querySelector('#s-logout').onclick=()=>{close();logout()};
+  const pr=sh.querySelector('#s-push');if(pr){const P=esc(S.partner.name||'dein Schatz');
+   const draw=async()=>{const st=await pushState();
+    pr.innerHTML=st==='on'?`<span>An: Du bekommst Bescheid, wenn ${P} dir Herzen schickt.</span><button type="button" class="btn ghost" id="s-pushbtn">Ausschalten</button>`
+     :st==='off'?`<span>Bekomm eine Nachricht aufs Handy, wenn ${P} dir Herzen schickt.</span><button type="button" class="btn pink" id="s-pushbtn">Einschalten</button>`
+     :st==='install'?`<small class="muted">Auf dem iPhone geht das nur, wenn Pingpaar auf dem Home-Bildschirm liegt: In Safari auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“. Danach Pingpaar dort öffnen und hier einschalten.</small>`
+     :st==='denied'?`<small class="muted">Benachrichtigungen sind blockiert. Erlaube sie in den Einstellungen deines Handys für Pingpaar, dann kannst du sie hier einschalten.</small>`
+     :`<small class="muted">Dieser Browser kann leider keine Benachrichtigungen anzeigen.</small>`;
+    const b=pr.querySelector('#s-pushbtn');if(b)b.onclick=async()=>{b.disabled=true;
+     try{if(st==='on'){await pushOff();toast('Benachrichtigungen aus')}else{const ok=await pushOn();toast(ok?'Benachrichtigungen an':'Benachrichtigungen wurden nicht erlaubt')}}
+     catch(e){console.error(e);toast('Das hat nicht geklappt. Bitte versuch es noch mal.')}draw()}};
+   draw()}
   sh.querySelector('#s-pw').onclick=()=>{close();showOnb('newpw')};
   const ul=sh.querySelector('#s-unlink');if(ul){let armed=false;ul.onclick=async()=>{if(!armed){armed=true;ul.textContent='Wirklich trennen?';return}
-   try{await flushPush();const {error}=await sb.rpc('leave_couple');if(error)throw error;if(chan){sb.removeChannel(chan);chan=null}COUPLE=null;close();pending={name:S.me.name,avatar:S.me.avatar};S=freshState();renderAll();showOnb('start');toast('Verbindung getrennt')}catch(e){toast(AUTH_ERR(e))}}}
+   try{await flushPush();await unlinkPushSub();await wipeImgs();const {error}=await sb.rpc('leave_couple');if(error)throw error;if(chan){sb.removeChannel(chan);chan=null}COUPLE=null;close();pending={name:S.me.name,avatar:S.me.avatar};S=freshState();renderAll();showOnb('start');toast('Verbindung getrennt')}catch(e){toast(AUTH_ERR(e))}}}
   const dl=sh.querySelector('#s-del');let armed=false;dl.onclick=async()=>{if(!armed){armed=true;dl.textContent='Konto und Daten wirklich löschen?';return}
-   try{const {error}=await sb.rpc('delete_me');if(error)throw error;if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;S=freshState();close();renderAll();showOnb('welcome');toast('Dein Konto wurde gelöscht')}catch(e){toast(AUTH_ERR(e))}};
+   try{await unlinkPushSub();await wipeImgs();const {error}=await sb.rpc('delete_me');if(error)throw error;if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;S=freshState();close();renderAll();showOnb('welcome');toast('Dein Konto wurde gelöscht')}catch(e){toast(AUTH_ERR(e))}};
  });
 }
 
@@ -2726,7 +2783,7 @@ function showOnb(step){appReady();
  const ot=onb.querySelector('#o-out');if(ot)ot.onclick=()=>logout();
  onb.onkeydown=e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){const b=onb.querySelector('#o-next,#o-login,#o-send,#o-setpw,#o-join');b&&b.click()}};
 }
-async function logout(){imgCache={};pushedImgs=new Set();cacheShown=null;try{localStorage.removeItem('pp-last-uid')}catch(_){}try{await flushPush()}catch(_){}if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;pending={};pushed={};S=freshState();renderAll();showOnb('login')}
+async function logout(){await unlinkPushSub();imgCache={};pushedImgs=new Set();cacheShown=null;try{localStorage.removeItem('pp-last-uid')}catch(_){}try{await flushPush()}catch(_){}if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;pending={};pushed={};S=freshState();renderAll();showOnb('login')}
 
 /* ================= SERIE & TAGESAUFGABE ================= */
 const TASKS=[
@@ -3110,7 +3167,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610262249';
+ const APP_V='202610270003';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});

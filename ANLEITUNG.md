@@ -90,6 +90,33 @@ Damit die Links in den E-Mails (Konto bestätigen, Passwort vergessen) zurück z
 - **Änderungen hochladen:** Neue Version einer Datei auf GitHub einfach wieder über **Add file → Upload files** hochladen. Die Seite aktualisiert sich nach 1–2 Minuten.
 - **Wenn andere Leute die App nutzen sollen:** Dann braucht die Seite in Deutschland ein Impressum und eine Datenschutzerklärung. Für euch zwei privat ist das nicht nötig.
 
+## Benachrichtigungen und Bilder-Speicher einrichten
+
+Einmalig, dauert etwa 5 Minuten.
+
+**1. Datenbank ergänzen**
+1. Supabase → **SQL Editor** → **New query**.
+2. Inhalt von `update-push-bilder.sql` einfügen → **Run**. Unten steht „Success“.
+   Danach ziehen die Bilder beim nächsten Öffnen der App von selbst in den Dateispeicher um.
+
+**2. Funktion „notify“ anlegen**
+1. Supabase → links **Edge Functions** → **Deploy a new function** → **Via Editor**.
+2. Name: `notify`.
+3. Den ganzen Beispielcode löschen und den Inhalt von `supabase/functions/notify/index.ts` einfügen → **Deploy function**.
+4. In der Funktion unter **Details** bzw. **Settings** den Schalter **Verify JWT** ausschalten → speichern.
+   (Die Funktion prüft das Login selbst über die Datenbank.)
+
+**3. Schlüssel hinterlegen**
+1. **Edge Functions** → **Secrets** → **Add new secret**.
+2. `VAPID_PUBLIC` = der Wert `vapidPublicKey` aus `config.js`.
+3. `VAPID_PRIVATE` = der geheime Schlüssel (steht nicht im Repo, nirgends öffentlich teilen).
+4. **Save**.
+
+**4. Auf dem Handy einschalten**
+- iPhone: Pingpaar muss über das Symbol auf dem Home-Bildschirm geöffnet werden (Safari → Teilen → „Zum Home-Bildschirm“).
+- In der App: Menü → **Profil & Einstellungen** → **Benachrichtigungen** → **Einschalten** → erlauben.
+- Jeder schaltet es auf dem eigenen Handy ein.
+
 ## Was die App kann
 
 - Echte Konten mit E-Mail und Passwort, Passwort vergessen, Konto löschen
@@ -98,4 +125,4 @@ Damit die Links in den E-Mails (Konto bestätigen, Passwort vergessen) zurück z
 - Private Kalender sieht nur ihr selbst, auch technisch: Die Datenbank gibt sie dem Partner nicht heraus
 - Daten in Frankfurt (EU), verschlüsselt gespeichert und übertragen
 
-**Was es noch nicht gibt:** Push-Benachrichtigungen bei geschlossener App, echte Widgets und GPS-Entfernung. Dafür braucht es die spätere Handy-App.
+**Was es noch nicht gibt:** echte Widgets und GPS-Entfernung. Benachrichtigungen gibt es bisher für empfangene Herzen. Dafür braucht es die spätere Handy-App.
