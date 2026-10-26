@@ -2986,10 +2986,10 @@ else{
   if(ev==='SIGNED_IN'||ev==='INITIAL_SESSION')enter(session)},0)});
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
- if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
- const APP_V='202610262206';
+ if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+ const APP_V='202610262211';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
-  if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=()=>location.reload();document.getElementById('app').appendChild(b)}}catch(_){}};
+  if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
 }
 })();
