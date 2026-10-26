@@ -118,6 +118,7 @@ h1,h2,h3{margin:0;font-weight:700;text-wrap:balance}
 .distance svg.route{display:block;width:100%;height:clamp(44px,8.5svh,92px);overflow:visible}
 .distance .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:2px}
 .distance .row span{font-weight:700;font-size:14.5px}
+.distance .kmbtn{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:4px;color:inherit;border-radius:8px;padding:0 4px}.distance .kmbtn:focus-visible{outline:2px solid currentColor}.distance .kmbtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;align-self:center;opacity:.75}
 .distance .row b{font-size:clamp(19px,3svh,24px);font-variant-numeric:tabular-nums}
 .next{display:grid;grid-template-columns:50px 1fr;gap:14px;align-items:center}
 .datebox{border-radius:14px;text-align:center;padding:5px 0;line-height:1.05;color:#fff}
@@ -1321,7 +1322,7 @@ async function loadCouple(){
  await fetchImgs(refsOf(obj));
  const st=fromRows(obj);S=Object.assign(freshState(),st,{account:{email:ME.email},loggedIn:true,inviteCode:c?c.invite_code:null,demo:false});
  try{S.lastIncoming=localStorage.getItem('pp-li-'+ME.id)||null}catch(_){}
- await refreshMembers();migrate();subscribe();cacheSave();setTimeout(migrateImgs,3000);setTimeout(syncPushSub,1500);return true}
+ await refreshMembers();migrate();subscribe();cacheSave();setTimeout(migrateImgs,3000);setTimeout(syncPushSub,1500);setTimeout(()=>updateLoc(false),1200);return true}
 function subscribe(){if(chan)sb.removeChannel(chan);
  chan=sb.channel('couple-'+COUPLE)
   .on('postgres_changes',{event:'*',schema:'public',table:'couple_data',filter:'couple_id=eq.'+COUPLE},onRemote)
@@ -1423,6 +1424,41 @@ function cropImage(file){return new Promise(async res=>{
   },()=>finish(null));
  };img.src=src;})}
 function km(a,b){const A=CITIES[a],B=CITIES[b];if(!A||!B)return null;const R=6371,t=x=>x*Math.PI/180;const dLa=t(B[0]-A[0]),dLo=t(B[1]-A[1]);const h=Math.sin(dLa/2)**2+Math.cos(t(A[0]))*Math.cos(t(B[0]))*Math.sin(dLo/2)**2;return Math.round(2*R*Math.asin(Math.sqrt(h)))}
+/* Genauer Standort (freiwillig): wird auf ca. 100 m gerundet geteilt, nur für die Entfernung */
+function kmLL(A,B){const R=6371,t=x=>x*Math.PI/180;const dLa=t(B[0]-A[0]),dLo=t(B[1]-A[1]);const h=Math.sin(dLa/2)**2+Math.cos(t(A[0]))*Math.cos(t(B[0]))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+const llOf=p=>p&&p.loc&&typeof p.loc.la==='number'?[p.loc.la,p.loc.ln]:CITIES[p&&p.city]||null;
+const placeOf=p=>p&&p.loc&&p.loc.place||p&&p.city||'';
+function distNow(){const A=llOf(S.me),B=llOf(S.partner);if(!A||!B)return null;return kmLL(A,B)}
+function fmtDist(d){if(d===null)return '–';if(d<10)return (Math.round(d*10)/10).toLocaleString('de-DE');return Math.round(d).toLocaleString('de-DE')}
+const locKey=()=>'pp-loc-'+(ME?ME.id:'x');
+const locOn=()=>{try{return localStorage.getItem(locKey())==='1'}catch(_){return false}};
+function setLocOn(v){try{v?localStorage.setItem(locKey(),'1'):localStorage.removeItem(locKey())}catch(_){}}
+async function placeName(la,ln){try{const r=await fetch(`https://photon.komoot.io/reverse?lat=${la}&lon=${ln}&lang=de&limit=1`);const j=await r.json();const q=j.features&&j.features[0]&&j.features[0].properties||{};
+ return q.city||q.town||q.village||q.locality||q.district||q.county||q.name||''}catch(_){return ''}}
+function getPos(high){return new Promise((res,rej)=>{if(!navigator.geolocation)return rej(new Error('nogeo'));navigator.geolocation.getCurrentPosition(p=>res(p.coords),rej,{enableHighAccuracy:!!high,timeout:15000,maximumAge:high?0:6e5})})}
+let locBusy=false;
+async function updateLoc(force){if(locBusy||!S.connected||(!force&&!locOn()))return false;locBusy=true;
+ try{const c=await getPos(force);const la=Math.round(c.latitude*1000)/1000,ln=Math.round(c.longitude*1000)/1000,old=S.me.loc;
+  const moved=!old||kmLL([old.la,old.ln],[la,ln])>0.3;if(!force&&!moved&&Date.now()-(old.at||0)<36e5)return true;
+  const place=moved||!old.place?await placeName(la,ln):old.place;
+  S.me.loc={la,ln,at:Date.now(),place:place||(old&&old.place)||''};save();rerender();return true}
+ catch(e){if(e&&e.code===1){setLocOn(false);if(force)toast('Standort nicht erlaubt. Du kannst es in den Einstellungen deines Handys für Pingpaar erlauben.')}else if(force)toast('Standort konnte gerade nicht bestimmt werden.');return false}
+ finally{locBusy=false}}
+function locOff(){setLocOn(false);if(S.me.loc){delete S.me.loc;save();rerender()}}
+function locAgo(t){if(!t)return '';const m=Math.round((Date.now()-t)/6e4);return m<2?'gerade eben':m<60?`vor ${m} Min.`:m<1440?`vor ${Math.round(m/60)} Std.`:`vor ${Math.round(m/1440)} ${Math.round(m/1440)===1?'Tag':'Tagen'}`}
+function locSheet(){const P=esc(S.partner.name||'Dein Partner'),on=locOn()&&S.me.loc;
+ const pl=S.partner.loc?`${P} teilt den Standort (${esc(S.partner.loc.place||'')}, ${locAgo(S.partner.loc.at)}).`:`${P} teilt noch keinen Standort. Dort wird mit der Stadt aus dem Profil gerechnet.`;
+ openSheet(`<h2>Genaue Entfernung</h2>
+  <p class="muted" style="margin:0;font-size:14.5px;line-height:1.45">Mit deinem Standort rechnet Pingpaar die echte Entfernung zwischen euch aus, statt nur von Stadt zu Stadt. Er wird jedes Mal aktualisiert, wenn du die App öffnest.</p>
+  <p class="muted" style="margin:0;font-size:14.5px;line-height:1.45">${P} sieht nur die Entfernung und den Ortsnamen, keine Karte und keine Adresse. Der Standort wird auf etwa 100 m gerundet.</p>
+  <div class="field"><span class="lbl">Du</span><span>${on?`Wird geteilt: <b>${esc(S.me.loc.place||'')}</b> · ${locAgo(S.me.loc.at)}`:'Wird nicht geteilt'}</span></div>
+  <div class="field"><span class="lbl">${P}</span><span>${pl}</span></div>
+  <div class="sheet-actions">${on?'<button class="btn ghost" id="l-off">Nicht mehr teilen</button><button class="btn pink" id="l-now">Jetzt aktualisieren</button>':'<button class="btn" id="l-x">Später</button><button class="btn pink" id="l-on">Standort teilen</button>'}</div>`,
+ (sh,close)=>{const q=x=>sh.querySelector(x);
+  q('#l-x')&&(q('#l-x').onclick=close);
+  q('#l-off')&&(q('#l-off').onclick=()=>{locOff();close();toast('Standort wird nicht mehr geteilt')});
+  const go=async b=>{b.disabled=true;b.textContent='Suche Standort …';setLocOn(true);const ok=await updateLoc(true);close();if(ok)toast('Entfernung aktualisiert: '+fmtDist(distNow())+' km')};
+  q('#l-on')&&(q('#l-on').onclick=e=>go(e.target));q('#l-now')&&(q('#l-now').onclick=e=>go(e.target));})}
 const calOf=id=>S.cals.find(c=>c.id===id)||S.cals[0]||{name:'Kalender',color:'#7b8494'};
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1461,7 +1497,7 @@ const today0=()=>new Date(new Date().toDateString());
 const daysUntil=s=>Math.round((parse(s)-today0())/864e5);
 const inDays=n=>n===0?'heute':n===1?'morgen':'in '+n+' Tagen';
 function renderHome(){
- const days=Math.floor((new Date()-parse(S.since))/864e5);const dist=km(S.me.city,S.partner.city);const ev=nextEvent();
+ const days=Math.floor((new Date()-parse(S.since))/864e5);const dist=distNow();const ev=nextEvent();
  const mm=moodOf(S.me.mood),pm=moodOf(S.partner.mood);
  const ru=S.reunion&&daysUntil(S.reunion)>=0?daysUntil(S.reunion):null;
  $('#p-home').innerHTML=`
@@ -1481,7 +1517,7 @@ function renderHome(){
  </div>
  <div class="card distance">
   ${S.connected?`${routeSvg()}
-  <div class="row"><span>${esc(S.me.city)}</span><b>${dist===null?'–':dist.toLocaleString('de-DE')} km</b><span>${esc(S.partner.city)}</span></div>
+  <div class="row"><span>${esc(placeOf(S.me))}</span><button type="button" class="kmbtn" id="kmBtn" aria-label="Genaue Entfernung">${S.me.loc&&locOn()?'':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.3"/></svg>'}<b>${fmtDist(dist)} km</b></button><span>${esc(placeOf(S.partner))}</span></div>
   <div class="reunion">${ru===null?`<button class="btn sky-btn" id="ruBtn">Wann seht ihr euch wieder?</button>`
    :ru===0?`<span class="ru-line"><b>Heute</b> seht ihr euch wieder</span><button class="link on-sky" id="ruBtn">Ändern</button>`
    :`<span class="ru-line">Wiedersehen in <b>${ru} ${ru===1?'Tag':'Tagen'}</b> · ${WDL[parse(S.reunion).getDay()].slice(0,2)}, ${parse(S.reunion).getDate()}. ${MSHORT[parse(S.reunion).getMonth()]}</span><button class="link on-sky" id="ruBtn">Ändern</button>`}</div>`
@@ -1498,7 +1534,7 @@ function renderHome(){
  {const tc=$('#togetherCard');tc.onclick=milestoneSheet;tc.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();milestoneSheet()}}}
  renderStreakChip();
  $('#heartBtn').onclick=sendHearts;
- const rb=$('#ruBtn');rb&&(rb.onclick=reunionSheet);
+ const rb=$('#ruBtn');rb&&(rb.onclick=reunionSheet);const kb=$('#kmBtn');kb&&(kb.onclick=locSheet);
 }
 
 /* ---- Countdown ---- */
@@ -2232,7 +2268,7 @@ function loadMapLib(){if(MK)return Promise.resolve(MK);if(mapLoading)return mapL
  mapLoading=(async()=>{if(glOk()){try{loadCss('vendor/maplibre-gl.css');if(!window.maplibregl)await loadScript('vendor/maplibre-gl.js');MK='ml';return MK}catch(_){}}
   loadCss('vendor/leaflet.css');if(!window.L)await loadScript('vendor/leaflet.js');MK='lf';return MK})();
  mapLoading.catch(()=>{mapLoading=null});return mapLoading}
-const startLL=()=>CITIES[S.me.city]||[50.94,6.96];
+const startLL=()=>llOf(S.me)||[50.94,6.96];
 function onMapClick(lat,lng){if(!placing)return;placing=false;renderFood();spotSheet(null,lat,lng)}
 function ensureMap(){if(MAP||!MK)return;MAPEL=document.createElement('div');MAPEL.className='lmap';const [la,ln]=startLL();
  if(MK==='ml'){
@@ -3167,10 +3203,10 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610270003';
+ const APP_V='202610270051';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
- setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
+ setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkV();if(COUPLE)updateLoc(false)}});
 }
 })();
 </script>
