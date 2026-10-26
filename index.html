@@ -961,7 +961,8 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .lb-hint{font-size:12px;opacity:.5;margin-top:4px}
 
 /* Start-Animation */
-.splash{position:fixed;inset:0;z-index:1000;background:radial-gradient(circle at 50% 42%,#fff,var(--bg) 62%);display:grid;place-items:center;animation:spOut .5s ease 2.55s forwards;cursor:pointer}
+.splash{position:fixed;inset:0;z-index:1000;background:radial-gradient(circle at 50% 42%,#fff,var(--bg) 62%);display:grid;place-items:center;animation:spOut .5s ease 9s forwards;cursor:pointer}
+.splash.out{animation:spOut .35s ease forwards}
 .sp-in{display:flex;flex-direction:column;align-items:center;gap:10px}
 .sp-art{width:min(62vw,260px);overflow:visible}
 .sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart{transform-box:fill-box}
@@ -978,8 +979,8 @@ input[type=range]{accent-color:var(--ink);width:100%}
 @keyframes spHeart{from{transform:scale(0) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 @keyframes spWord{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes spOut{to{opacity:0;visibility:hidden}}
-.splash.skip{animation:spOut .25s ease forwards}
-@media (prefers-reduced-motion:reduce){.splash{animation-delay:.8s}.sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart,.sp-word{animation:none}}
+
+@media (prefers-reduced-motion:reduce){.sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart,.sp-word{animation:none}}
 
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
@@ -1162,14 +1163,26 @@ function freshState(){const d=seed();Object.assign(d,{demo:false,connected:false
 const CFG=window.PINGPAAR_CONFIG||{};
 let sb=null;try{if(CFG.supabaseUrl&&CFG.supabaseKey&&window.supabase)sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,detectSessionInUrl:true}})}catch(_){sb=null}
 let ME=null,COUPLE=null,SLOT='a',MEMBERS=[],chan=null,pushed={},pushedImgs=new Set(),imgCache={},pushTimer=0,pushChain=Promise.resolve(),renderTimer=0,entered=false;
+const IDB={db:null,
+ open(){if(this.db)return this.db;this.db=new Promise(res=>{try{const r=indexedDB.open('pingpaar',1);r.onupgradeneeded=()=>{r.result.createObjectStore('kv');r.result.createObjectStore('img')};r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)}catch(_){res(null)}});return this.db},
+ async get(st,k){const d=await this.open();if(!d)return undefined;return new Promise(res=>{try{const q=d.transaction(st).objectStore(st).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(_){res(undefined)}})},
+ async put(st,k,v){const d=await this.open();if(!d)return;return new Promise(res=>{try{const t=d.transaction(st,'readwrite');t.objectStore(st).put(v,k);t.oncomplete=()=>res();t.onerror=()=>res()}catch(_){res()}})}};
+let cacheTimer=0;
+function cacheSave(){if(!ME||!COUPLE)return;clearTimeout(cacheTimer);cacheTimer=setTimeout(()=>{try{const imgs={},st=dehydrate(S,imgs);for(const k in imgs)IDB.put('img',k,imgs[k]);
+ IDB.put('kv','state-'+ME.id,{S:st,couple:COUPLE,slot:SLOT,invite:S.inviteCode,members:MEMBERS})}catch(_){}},400)}
+async function cacheLoad(uid){const c=await IDB.get('kv','state-'+uid);if(!c||!c.S)return null;const keys=refsOf(c.S);
+ await Promise.all([...keys].map(async k=>{if(!(k in imgCache)){const v=await IDB.get('img',k);if(v)imgCache[k]=v}}));return c}
 const SWAPV=new Set(['by','who','owner']);
 function swapP(x){if(Array.isArray(x))return x.map(swapP);if(x&&typeof x==='object'){const r={};for(const k in x){const nk=k==='me'?'partner':k==='partner'?'me':k;let v=swapP(x[k]);if(SWAPV.has(k)&&(v==='me'||v==='partner'))v=v==='me'?'partner':'me';r[nk]=v}return r}return x}
 const persp=o=>SLOT==='b'?swapP(o):o;
 const privKey=()=>'priv:'+ME.id;
 function fillImgs(x){if(Array.isArray(x))return x.map(fillImgs);if(x&&typeof x==='object'){const r={};for(const k in x)r[k]=fillImgs(x[k]);return r}if(typeof x==='string'&&x.startsWith('imgref:'))return imgCache[x.slice(7)]||null;return x}
 function refsOf(x,set=new Set()){if(Array.isArray(x))x.forEach(y=>refsOf(y,set));else if(x&&typeof x==='object')Object.values(x).forEach(y=>refsOf(y,set));else if(typeof x==='string'&&x.startsWith('imgref:'))set.add(x.slice(7));return set}
-async function fetchImgs(keys){const need=[...keys].filter(k=>!(k in imgCache));if(!need.length)return;
- const {data}=await sb.from('couple_data').select('key,value').eq('couple_id',COUPLE).in('key',need);(data||[]).forEach(r=>{imgCache[r.key]=r.value&&r.value.d;pushedImgs.add(r.key)})}
+async function fetchImgs(keys){let need=[...keys].filter(k=>!(k in imgCache));if(!need.length)return;
+ await Promise.all(need.map(async k=>{const v=await IDB.get('img',k);if(v){imgCache[k]=v;pushedImgs.add(k)}}));
+ need=need.filter(k=>!(k in imgCache));
+ await Promise.all(Array.from({length:Math.ceil(need.length/12)},(_,i)=>need.slice(i*12,i*12+12)).map(async part=>{
+  const {data}=await sb.from('couple_data').select('key,value').eq('couple_id',COUPLE).in('key',part);(data||[]).forEach(r=>{const v=r.value&&r.value.d;imgCache[r.key]=v;pushedImgs.add(r.key);if(v)IDB.put('img',r.key,v)})}))}
 /* Gemeinsame Daten -> Zeilen in der Datenbank (aus Sicht von Platz a) */
 function toRows(){const shared={};for(const k in S)if(!LOCAL_KEYS.includes(k))shared[k]=S[k];
  const privC=(S.cals||[]).filter(c=>!c.shared),privIds=new Set(privC.map(c=>c.id));
@@ -1178,7 +1191,7 @@ function toRows(){const shared={};for(const k in S)if(!LOCAL_KEYS.includes(k))sh
 function fromRows(rows){const shared={},pv=rows[privKey()]||{cals:[],events:[]};for(const k in rows)if(!k.startsWith('priv:')&&!k.startsWith('img-'))shared[k]=rows[k];
  const st=persp(fillImgs(shared));const pf=fillImgs(pv);st.cals=[...(st.cals||[{id:'wir',name:'Wir beide',color:'#b0656d',shared:true}]),...(pf.cals||[])];st.events=[...(st.events||[]),...(pf.events||[])];
  if(!st.cals.some(c=>!c.shared))st.cals.push({id:'privat-'+ME.id.slice(0,8),name:'Privat',color:'#6f8ea6',shared:false});return st}
-function save(){S.rev=Date.now();syncPush();try{updateBadges()}catch(_){}}
+function save(){S.rev=Date.now();syncPush();cacheSave();try{updateBadges()}catch(_){}}
 function syncPush(){if(!sb||!COUPLE||!ME)return;clearTimeout(pushTimer);pushTimer=setTimeout(()=>{pushChain=pushChain.then(doPush).catch(e=>{console.error(e);toast('Speichern hat nicht geklappt. Prüfe deine Internetverbindung.')})},500)}
 let imgProgress=null;
 async function doPush(){const imgs={},rows=dehydrate(toRows(),imgs);let failed=0;
@@ -1197,13 +1210,12 @@ async function refreshMembers(){const {data}=await sb.from('couple_members').sel
 async function loadCouple(){
  const {data:m,error}=await sb.from('couple_members').select('couple_id,slot').eq('user_id',ME.id).maybeSingle();if(error)throw error;if(!m)return false;
  COUPLE=m.couple_id;SLOT=m.slot;
- const {data:c}=await sb.from('couples').select('invite_code').eq('id',COUPLE).maybeSingle();
- const {data:rows,error:e2}=await sb.from('couple_data').select('key,value').eq('couple_id',COUPLE);if(e2)throw e2;
- const obj={};pushed={};(rows||[]).forEach(r=>{if(r.key.startsWith('img-')){imgCache[r.key]=r.value&&r.value.d;pushedImgs.add(r.key)}else{obj[r.key]=r.value;pushed[r.key]=JSON.stringify(r.value)}});
+ const [{data:c},{data:rows,error:e2}]=await Promise.all([sb.from('couples').select('invite_code').eq('id',COUPLE).maybeSingle(),sb.from('couple_data').select('key,value').eq('couple_id',COUPLE).not('key','like','img-%')]);if(e2)throw e2;
+ const obj={};pushed={};(rows||[]).forEach(r=>{obj[r.key]=r.value;pushed[r.key]=JSON.stringify(r.value)});
  await fetchImgs(refsOf(obj));
  const st=fromRows(obj);S=Object.assign(freshState(),st,{account:{email:ME.email},loggedIn:true,inviteCode:c?c.invite_code:null,demo:false});
  try{S.lastIncoming=localStorage.getItem('pp-li-'+ME.id)||null}catch(_){}
- await refreshMembers();migrate();subscribe();return true}
+ await refreshMembers();migrate();subscribe();cacheSave();return true}
 function subscribe(){if(chan)sb.removeChannel(chan);
  chan=sb.channel('couple-'+COUPLE)
   .on('postgres_changes',{event:'*',schema:'public',table:'couple_data',filter:'couple_id=eq.'+COUPLE},onRemote)
@@ -1213,7 +1225,7 @@ function subscribe(){if(chan)sb.removeChannel(chan);
   .subscribe()}
 async function onRemote(p){const r=p.new;if(!r||!r.key)return;if(r.updated_by===ME.id)return;
  let val=r.value;if(val===undefined){const {data}=await sb.from('couple_data').select('value').eq('couple_id',COUPLE).eq('key',r.key).maybeSingle();val=data?data.value:null}
- if(r.key.startsWith('img-')){imgCache[r.key]=val&&val.d;pushedImgs.add(r.key);return}
+ if(r.key.startsWith('img-')){imgCache[r.key]=val&&val.d;pushedImgs.add(r.key);if(val&&val.d)IDB.put('img',r.key,val.d);return}
  if(r.key.startsWith('priv:'))return;
  pushed[r.key]=JSON.stringify(val);await fetchImgs(refsOf(val));
  const st=persp(fillImgs({[r.key]:val})),k=Object.keys(st)[0];
@@ -1221,19 +1233,25 @@ async function onRemote(p){const r=p.new;if(!r||!r.key)return;if(r.updated_by===
  else if(k==='events'){const ids=new Set(S.cals.filter(c=>!c.shared).map(c=>c.id));S.events=[...(st.events||[]),...S.events.filter(e=>ids.has(e.cal))]}
  else{const old=S[k];S[k]=st[k];if(k==='hearts')checkHearts(old)}
  rerender()}
-function rerender(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{try{renderAll();if(view==='pet')updatePetHud()}catch(e){console.error(e)}},120)}
+function rerender(){cacheSave();clearTimeout(renderTimer);renderTimer=setTimeout(()=>{try{renderAll();if(view==='pet')updatePetHud()}catch(e){console.error(e)}},120)}
 function checkHearts(){const list=S.hearts||[];let seen=0;try{seen=+localStorage.getItem('pp-hs-'+ME.id)||0}catch(_){}
  const fresh=list.filter(h=>h.by==='partner'&&h.at>seen);if(!fresh.length)return;const last=fresh[fresh.length-1];
  try{localStorage.setItem('pp-hs-'+ME.id,String(last.at))}catch(_){}
  if(last.kind==='kiss')toast((S.partner.name||'Dein Partner')+' hat dir einen Kuss zurückgeschickt');else incomingHearts(last.n||5)}
 function logHeart(kind,n){S.hearts=[...(S.hearts||[]),{by:'me',kind,n,at:Date.now()}].slice(-30)}
 /* Start */
+const T0=performance.now();let readyDone=false;
+function appReady(now){if(readyDone)return;const sp=document.getElementById('splash');if(!sp){readyDone=true;return}
+ const wait=now?0:Math.max(0,2300-(performance.now()-T0));readyDone=true;setTimeout(()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),400)},wait)}
 async function enter(session){if(!session){entered=false;return}ME=session.user;if(entered&&COUPLE)return;entered=true;
+ let fromCache=false;
+ try{const c=await cacheLoad(ME.id);if(c&&!COUPLE){S=Object.assign(freshState(),fillImgs(c.S),{account:{email:ME.email},loggedIn:true});SLOT=c.slot||'a';MEMBERS=c.members||[];
+   try{migrate()}catch(_){}hideOnb();renderAll();go('home');fromCache=true;appReady()}}catch(_){}
  try{const has=await loadCouple();
   if(!has){showOnb(pending.avatar?'start':'photo');return}
-  hideOnb();renderAll();go('home');checkHearts();
+  if(fromCache){rerender()}else{hideOnb();renderAll();go('home')}appReady();checkHearts();
   const code=pendingCode();if(code&&code.replace(/[^A-Z0-9]/gi,'').toUpperCase()!==(S.inviteCode||'').replace('-','')){showOnb('switch')}
- }catch(e){console.error(e);entered=false;showOnb('error')}}
+ }catch(e){console.error(e);entered=false;if(fromCache){toast('Keine Verbindung. Du siehst den letzten Stand.');setTimeout(async()=>{const s=await sb.auth.getSession();enter(s.data.session)},8000)}else showOnb('error')}}
 function pendingCode(){try{return sessionStorage.getItem('pp-code')}catch(_){return null}}
 function setPendingCode(c){try{c?sessionStorage.setItem('pp-code',c):sessionStorage.removeItem('pp-code')}catch(_){}}
 async function finishProfile(){S.me.name=pending.name||ME.user_metadata?.name||S.me.name||'Ich';if(pending.avatar)S.me.avatar=pending.avatar;S.me.mood=null;pending={};await flushPush();save();await flushPush()}
@@ -2443,7 +2461,7 @@ function inviteSheet(){
 /* ================= ONBOARDING (echte Konten) ================= */
 let onb=null,pending={};
 function hideOnb(){if(onb){onb.remove();onb=null}}
-function showOnb(step){
+function showOnb(step){appReady();
  if(!onb){onb=document.createElement('div');onb.className='onb';$('#app').appendChild(onb)}
  const back=to=>`<button class="back" data-to="${to}">‹ Zurück</button>`;
  const EU_NOTE='<p class="eu-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Eure Daten liegen verschlüsselt auf Servern in der EU.</span></p>';
@@ -2524,7 +2542,7 @@ function showOnb(step){
  const ot=onb.querySelector('#o-out');if(ot)ot.onclick=()=>logout();
  onb.onkeydown=e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){const b=onb.querySelector('#o-next,#o-login,#o-send,#o-setpw,#o-join');b&&b.click()}};
 }
-async function logout(){try{await flushPush()}catch(_){}if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;pending={};pushed={};S=freshState();renderAll();showOnb('login')}
+async function logout(){imgCache={};pushedImgs=new Set();try{await flushPush()}catch(_){}if(chan){sb.removeChannel(chan);chan=null}await sb.auth.signOut();ME=null;COUPLE=null;entered=false;pending={};pushed={};S=freshState();renderAll();showOnb('login')}
 
 /* ================= SERIE & TAGESAUFGABE ================= */
 const TASKS=[
@@ -2552,7 +2570,7 @@ function did(){if(!S.connected)return;const t=todayIso();S.act=S.act||{};const w
  if(!was&&bothOn(t)){const n=streak();setTimeout(()=>{toast(`Serie: ${n} ${n===1?'Tag':'Tage'} am Stück! Weiter so.`);bumpStreak()},700)}
  renderStreakChip()}
 const crystal=`<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5"/><path d="M9.6 4.2 12 6.4l2.4-2.2M9.6 19.8 12 17.6l2.4 2.2M4.3 10.6l3.1-.9-.8-3.1M19.7 13.4l-3.1.9.8 3.1M4.3 13.4l3.1.9-.8 3.1M19.7 10.6l-3.1-.9.8-3.1"/></g></svg>`;
-function renderStreakChip(){const b=$('#streakBtn');if(!b)return;b.hidden=!S.connected||!S.loggedIn;const n=streak(),mine=!!((S.act||{})[todayIso()]||{}).me;
+function renderStreakChip(){const b=$('#streakBtn');if(!b)return;b.hidden=false;b.style.visibility=(!S.connected||!S.loggedIn)?'hidden':'';const n=streak(),mine=!!((S.act||{})[todayIso()]||{}).me;
  b.innerHTML=`${crystal}<b>${n}</b>`;b.onclick=todaySheet;b.classList.toggle('todo',!mine);b.setAttribute('aria-label',`Eure Serie: ${n} Tage. ${mine?'Heute schon dabei.':'Heute noch offen.'} Kiesels Aufgabe ansehen`)}
 function bumpStreak(){const b=$('#streakBtn');if(!b||reduced())return;b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop')}
 function todaySheet(){
@@ -2890,7 +2908,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuOpen)closeMenu(
 $('#logoPeng').innerHTML=kissMark();
 
 function renderAll(){renderHome();renderKnow();renderIdea();renderPet();renderFood();renderWish();renderPhoto();renderCal();updateBadges();renderStreakChip()}
-{const sp=document.getElementById('splash');if(sp){sp.onclick=()=>sp.classList.add('skip');setTimeout(()=>sp.remove(),3200)}}
+{const sp=document.getElementById('splash');if(sp){sp.onclick=()=>appReady(true);setTimeout(()=>appReady(true),7000)}}
 renderAll();
 if(!sb)showOnb('setup');
 else{
