@@ -2146,7 +2146,7 @@ let lfLoading=null;function loadLeaflet(){if(window.L)return Promise.resolve();i
 function ensureMap(){if(LM||typeof L==='undefined')return;LMel=document.createElement('div');LMel.className='lmap';
  const c=CITIES[S.me.city]||[50.94,6.96];
  LM=L.map(LMel,{zoomControl:false,attributionControl:true,tap:true}).setView(c,13);
- L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(LM);
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'}).addTo(LM);
  L.control.zoom({position:'topright',zoomInTitle:'Hineinzoomen',zoomOutTitle:'Herauszoomen'}).addTo(LM);
  LMlayer=L.layerGroup().addTo(LM);
  LM.on('click',e=>{if(!placing)return;placing=false;renderFood();spotSheet(null,e.latlng.lat,e.latlng.lng)})}
@@ -2987,7 +2987,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
- const APP_V='202610262203';
+ const APP_V='202610262206';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=()=>location.reload();document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
