@@ -16,7 +16,6 @@
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{height:100%}html{touch-action:manipulation;-webkit-text-size-adjust:100%}button,a,label,.story,.story *{touch-action:manipulation}.story{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}body{margin:0;font:14px/1.4 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
-<link rel="stylesheet" href="vendor/leaflet.css">
 </head>
 <body>
 
@@ -1005,7 +1004,38 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .find-item small{color:var(--muted);font-size:13px}
 .spot-foot a.link{text-decoration:none;font-weight:700}
 
-.upd{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:95;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:inherit;font-weight:700;font-size:14px;padding:10px 18px;box-shadow:0 6px 20px rgb(0 0 0 / .2);white-space:nowrap}
+.upd{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:inherit;font-weight:700;font-size:14px;padding:10px 18px;box-shadow:0 6px 20px rgb(0 0 0 / .2);white-space:nowrap}
+/* Karte: Suche & Ergebnisse */
+.map-search{position:absolute;left:10px;top:10px;right:58px;z-index:3;display:flex;align-items:center;gap:6px;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgb(59 54 64 / .2);padding:0 6px 0 12px;height:44px}
+.map-search svg{width:18px;height:18px;color:var(--muted);flex:none}
+.map-search input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--ink);outline:none;-webkit-appearance:none;appearance:none}
+.map-search input::-webkit-search-cancel-button{display:none}
+.map-clr{border:0;background:var(--ice);width:28px;height:28px;border-radius:50%;font-size:18px;line-height:1;color:var(--muted);flex:none}
+.res-list{position:absolute;left:10px;right:58px;top:60px;z-index:3;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgb(59 54 64 / .2);max-height:46%;overflow:auto;display:flex;flex-direction:column}
+.res-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 12px;color:var(--ink);font:inherit}
+.res-item:last-child{border-bottom:0}
+.res-item small{color:var(--muted);font-size:12.5px}
+.res-msg{margin:0;padding:12px;font-size:14px}
+.res-card{position:absolute;left:10px;right:58px;bottom:12px;z-index:3;background:#fff;border-radius:18px;box-shadow:0 6px 20px rgb(59 54 64 / .25);padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.res-card strong{font-size:17px;padding-right:26px}
+.res-card small{color:var(--muted);font-size:13px}
+.res-card .link{font-size:13.5px;text-decoration:none;font-weight:700;margin-top:2px}
+.res-acts{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.res-acts .btn{padding:8px 14px;font-size:14px}
+.res-x{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:50%;border:0;background:var(--ice);font-size:18px;line-height:1;color:var(--muted)}
+.rpin{display:flex;align-items:center;gap:4px;cursor:pointer}
+.rdot{width:16px;height:16px;border-radius:50%;background:#e8833a;border:3px solid #fff;box-shadow:0 1px 4px rgb(0 0 0 / .3);flex:none}
+.rlbl{background:rgb(255 255 255 / .92);border-radius:8px;padding:1px 6px;font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 4px rgb(0 0 0 / .15)}
+.rpin.on .rdot{background:var(--pink-deep);transform:scale(1.25)}
+.rpin.on{z-index:5}
+.me-dot{width:16px;height:16px;border-radius:50%;background:#4a90e2;border:3px solid #fff;box-shadow:0 0 0 6px rgb(74 144 226 / .2)}
+.lpin{cursor:pointer;line-height:0}
+.lpin.sel{z-index:4}
+.place-banner2{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--pink-soft);border-radius:14px;padding:10px 14px;font-size:14px}
+.maplibregl-ctrl-group{border-radius:12px!important;box-shadow:0 2px 10px rgb(59 54 64 / .18)!important}
+.maplibregl-ctrl-group button{width:38px!important;height:38px!important}
+.lmap .maplibregl-canvas{outline:none}
+
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
  .top{padding-block:8px 4px}
@@ -2134,33 +2164,79 @@ function spotCard(s){
  <div class="fs-visits"><span>${n}× da gewesen${lv?' · zuletzt '+agoDays(lv):''}</span>${lv===iso(new Date())?'':`<button class="link" data-again="${s.id}">Heute wieder hier</button>`}</div>
  ${s.note?`<p class="note">${esc(s.note)}</p>`:''}
  <div class="spot-foot">${s.lat!=null?`<a class="link" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Route ↗</a>`:'<span></span>'}<button class="btn" data-edit-spot="${s.id}">Bearbeiten</button></div></div>`}
-/* ---- Echte Karte (Leaflet + OpenStreetMap) ---- */
-let LM=null,LMel=null,LMlayer=null,LMfit=false,meDot=null,findRes=[];
+/* ---- Echte Karte: MapLibre (Vektor, schnell) mit Leaflet als Notlösung ---- */
+let MK=null,MAPEL=null,MAP=null,MAPfit=false,meMk=null,pinMk=[],resMk=[],RES=[],resSel=null;
 const KIND_DE={restaurant:'Restaurant',cafe:'Café',fast_food:'Imbiss',bar:'Bar',pub:'Kneipe',ice_cream:'Eisdiele',bakery:'Bäckerei',biergarten:'Biergarten',food_court:'Food Court',confectionery:'Konditorei'};
 function pinHtml(s){const sel=foodSel===s.id,want=s.status==='want';
  const fill=sel?'#3b3640':want?'#ffffff':'#b0656d',stroke=want&&!sel?'#b0656d':'#ffffff';
  const inner=want?`<path transform="translate(-6.5 -29.6) scale(.54)" d="${heartPath}" fill="${sel?'#fbf7f2':'#b0656d'}"/>`
   :`<text y="-19" text-anchor="middle" font-size="11" font-weight="700" font-family="Palatino,Georgia,serif" fill="${sel?'#fbf7f2':'#fff'}">${scoreOf(s)?dec(Math.round(scoreOf(s)*10)/10):'–'}</text>`;
  return `<svg viewBox="-17 -40 34 44" width="${sel?40:34}" height="${sel?52:44}" aria-hidden="true"><ellipse cx="0" cy="1" rx="6" ry="2.2" fill="rgb(0 0 0 / .22)"/><path d="M0 0 C-4 -9 -13 -13 -13 -23 A13 13 0 1 1 13 -23 C13 -13 4 -9 0 0Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${inner}</svg>`}
-let lfLoading=null;function loadLeaflet(){if(window.L)return Promise.resolve();if(!lfLoading)lfLoading=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='vendor/leaflet.js';sc.onload=res;sc.onerror=()=>{lfLoading=null;rej()};document.head.appendChild(sc)});return lfLoading}
-function ensureMap(){if(LM||typeof L==='undefined')return;LMel=document.createElement('div');LMel.className='lmap';
- const c=CITIES[S.me.city]||[50.94,6.96];
- LM=L.map(LMel,{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:0.5,wheelPxPerZoomLevel:90}).setView(c,13);
- L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,keepBuffer:4,updateWhenZooming:false,crossOrigin:true,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'}).addTo(LM);
- L.control.zoom({position:'topright',zoomInTitle:'Hineinzoomen',zoomOutTitle:'Herauszoomen'}).addTo(LM);
- LMlayer=L.layerGroup().addTo(LM);
- let rsT=0;new ResizeObserver(()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(!LMel.clientWidth||!LMel.clientHeight)return;LM.invalidateSize({pan:false});if(!LMfit){fitSpots();LMfit=true}},60)}).observe(LMel);
- LM.on('click',e=>{if(!placing)return;placing=false;renderFood();spotSheet(null,e.latlng.lat,e.latlng.lng)})}
-function drawPins(){if(!LM)return;LMlayer.clearLayers();shownSpots().forEach(s=>{if(s.lat==null||s.lng==null)return;const sel=foodSel===s.id;
- const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'lpin',html:pinHtml(s),iconSize:sel?[40,52]:[34,44],iconAnchor:sel?[20,49]:[17,42]}),zIndexOffset:sel?1000:0,title:s.name,keyboard:true});
- m.on('click',()=>{foodSel=s.id;renderFood()});LMlayer.addLayer(m)})}
-function fitSpots(){if(!LMel||!LMel.clientWidth)return;LM.invalidateSize({pan:false});const pts=shownSpots().filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]);if(pts.length>1)LM.fitBounds(pts,{padding:[36,36],maxZoom:15});else if(pts.length===1)LM.setView(pts[0],15);else LM.setView(CITIES[S.me.city]||[50.94,6.96],13)}
+function loadScript(src){return new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=src;sc.onload=res;sc.onerror=rej;document.head.appendChild(sc)})}
+function loadCss(href){if(document.querySelector(`link[href="${href}"]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l)}
+function glOk(){try{const c=document.createElement('canvas');return !!(c.getContext('webgl2')||c.getContext('webgl'))}catch(_){return false}}
+let mapLoading=null;
+function loadMapLib(){if(MK)return Promise.resolve(MK);if(mapLoading)return mapLoading;
+ mapLoading=(async()=>{if(glOk()){try{loadCss('vendor/maplibre-gl.css');if(!window.maplibregl)await loadScript('vendor/maplibre-gl.js');MK='ml';return MK}catch(_){}}
+  loadCss('vendor/leaflet.css');if(!window.L)await loadScript('vendor/leaflet.js');MK='lf';return MK})();
+ mapLoading.catch(()=>{mapLoading=null});return mapLoading}
+const startLL=()=>CITIES[S.me.city]||[50.94,6.96];
+function onMapClick(lat,lng){if(!placing)return;placing=false;renderFood();spotSheet(null,lat,lng)}
+function ensureMap(){if(MAP||!MK)return;MAPEL=document.createElement('div');MAPEL.className='lmap';const [la,ln]=startLL();
+ if(MK==='ml'){
+  MAP=new maplibregl.Map({container:MAPEL,style:'https://tiles.openfreemap.org/styles/liberty',center:[ln,la],zoom:12.5,attributionControl:{compact:true},dragRotate:false,pitchWithRotate:false,touchPitch:false,fadeDuration:150,maxPitch:0});
+  MAP.touchZoomRotate.disableRotation();
+  MAP.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+  MAP.on('click',e=>onMapClick(e.lngLat.lat,e.lngLat.lng));
+  MAP.on('style.load',()=>{try{for(const l of MAP.getStyle().layers){if(l.type==='symbol'&&l.layout&&l.layout['text-field'])MAP.setLayoutProperty(l.id,'text-field',['coalesce',['get','name:de'],['get','name']])}}catch(_){}});
+  let failT=setTimeout(()=>{if(!MAP.isStyleLoaded()){MAP.remove();MAP=null;MK='lf';mapLoading=null;loadCss('vendor/leaflet.css');(window.L?Promise.resolve():loadScript('vendor/leaflet.js')).then(()=>{if(view==='food')renderFood()})}},9000);
+  MAP.on('load',()=>clearTimeout(failT));
+ }else{
+  MAP=L.map(MAPEL,{zoomControl:false,preferCanvas:true,zoomSnap:0.5}).setView([la,ln],13);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,keepBuffer:4,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'}).addTo(MAP);
+  L.control.zoom({position:'topright'}).addTo(MAP);MAP.on('click',e=>onMapClick(e.latlng.lat,e.latlng.lng));
+ }
+ let rsT=0;new ResizeObserver(()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(!MAP||!MAPEL.clientWidth||!MAPEL.clientHeight)return;MK==='ml'?MAP.resize():MAP.invalidateSize({pan:false});if(!MAPfit){fitSpots();MAPfit=true}},60)}).observe(MAPEL)}
+function mkMarker(lat,lng,el,anchorBottom,onClick,leftDot){el.addEventListener('click',ev=>{ev.stopPropagation();onClick&&onClick()});
+ if(MK==='ml')return new maplibregl.Marker({element:el,anchor:anchorBottom?'bottom':leftDot?'left':'center',offset:leftDot?[-8,0]:[0,0]}).setLngLat([lng,lat]).addTo(MAP);
+ const w=el.offsetWidth||34,h=el.offsetHeight||44;return L.marker([lat,lng],{icon:L.divIcon({className:'lf-wrap',html:el,iconSize:null,iconAnchor:anchorBottom?[17,42]:[8,8]})}).addTo(MAP)}
+function drawPins(){if(!MAP)return;pinMk.forEach(m=>m.remove());pinMk=[];
+ shownSpots().forEach(s=>{if(s.lat==null||s.lng==null)return;const el=document.createElement('div');el.className='lpin'+(foodSel===s.id?' sel':'');el.innerHTML=pinHtml(s);el.title=s.name;
+  pinMk.push(mkMarker(s.lat,s.lng,el,true,()=>{foodSel=s.id;clearResults(true);renderFood()}))})}
+function setView(lat,lng,z){if(!MAP)return;MK==='ml'?MAP.easeTo({center:[lng,lat],zoom:z,duration:500}):MAP.setView([lat,lng],z)}
+function fitPts(pts,maxZ){if(!MAP||!pts.length)return;if(pts.length===1)return setView(pts[0][0],pts[0][1],Math.min(maxZ,15.5));
+ if(MK==='ml'){let a=[180,90],b=[-180,-90];pts.forEach(([la,ln])=>{a=[Math.min(a[0],ln),Math.min(a[1],la)];b=[Math.max(b[0],ln),Math.max(b[1],la)]});MAP.fitBounds([a,b],{padding:50,maxZoom:maxZ,duration:500})}
+ else MAP.fitBounds(pts,{padding:[40,40],maxZoom:maxZ})}
+function fitSpots(){if(!MAP||!MAPEL.clientWidth)return;const pts=shownSpots().filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]);if(pts.length)fitPts(pts,15);else{const [la,ln]=startLL();MK==='ml'?MAP.jumpTo({center:[ln,la],zoom:12.5}):MAP.setView([la,ln],13)}}
 function locateMe(){if(!navigator.geolocation){toast('Dein Gerät kann den Standort nicht bestimmen.');return}toast('Standort wird gesucht …');
- navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(meDot)meDot.remove();meDot=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#4a90e2',fillOpacity:1}).addTo(LM);LM.setView(ll,15)},
+ navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude,ln=p.coords.longitude;if(meMk)meMk.remove();const el=document.createElement('div');el.className='me-dot';meMk=mkMarker(la,ln,el,false);setView(la,ln,15)},
   ()=>toast('Standort nicht erlaubt. Du kannst es in den Einstellungen deines Handys erlauben.'),{enableHighAccuracy:true,timeout:10000})}
-async function findPlaces(q){const b=LM?LM.getBounds():null;const vb=b?`&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`:'';
- const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=de${vb}&q=${encodeURIComponent(q)}`);if(!r.ok)throw new Error('search');return r.json()}
-function placeLabel(x){const a=x.address||{};const street=[a.road,a.house_number].filter(Boolean).join(' ');const town=a.city||a.town||a.village||a.suburb||'';return {name:x.name||(x.display_name||'').split(',')[0],sub:[street,town].filter(Boolean).join(', ')||x.display_name}}
+function mapCenter(){if(!MAP)return startLL();if(MK==='ml'){const c=MAP.getCenter();return [c.lat,c.lng]}const c=MAP.getCenter();return [c.lat,c.lng]}
+function mapBBox(){if(!MAP)return null;const b=MAP.getBounds();return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()]}
+let lastQ='';
+async function searchFood(q){const [la,ln]=mapCenter(),bb=mapBBox();
+ const base=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${la}&lon=${ln}&limit=20&lang=de&location_bias_scale=0.6&zoom=14`;
+ const tags='&osm_tag=amenity:restaurant&osm_tag=amenity:cafe&osm_tag=amenity:fast_food&osm_tag=amenity:bar&osm_tag=amenity:pub&osm_tag=amenity:ice_cream&osm_tag=amenity:biergarten&osm_tag=amenity:food_court&osm_tag=shop:bakery&osm_tag=shop:confectionery';
+ const get=async u=>{const r=await fetch(u);if(!r.ok)throw new Error('search');const j=await r.json();return (j.features||[]).map(f=>{const p=f.properties||{},c=f.geometry.coordinates;
+  return {name:p.name||q,lat:c[1],lng:c[0],kind:KIND_DE[p.osm_value]||'',sub:[[p.street,p.housenumber].filter(Boolean).join(' '),p.district||p.city].filter(Boolean).join(', ')}}).filter(x=>x.name)};
+ let res=bb?await get(base+tags+`&bbox=${bb.join(',')}`):[];if(!res.length)res=await get(base+tags);if(!res.length)res=await get(base);return res}
+function clearResults(keepBox){resMk.forEach(m=>m.remove());resMk=[];RES=[];resSel=null;const c=$('#resCard');if(c)c.hidden=true;const l=$('#resList');if(l)l.hidden=true;if(!keepBox){const i=$('#mapQ');if(i)i.value='';const x=$('#mapClr');if(x)x.hidden=true}}
+function showResults(list){resMk.forEach(m=>m.remove());resMk=[];RES=list;
+ list.forEach((r,i)=>{const el=document.createElement('div');el.className='rpin';el.innerHTML=`<span class="rdot"></span><span class="rlbl">${esc(r.name)}</span>`;resMk.push(mkMarker(r.lat,r.lng,el,false,()=>pickResult(i),true))});
+ const ls=$('#resList');if(ls){ls.innerHTML=list.slice(0,6).map((r,i)=>`<button type="button" class="res-item" data-ri="${i}"><strong>${esc(r.name)}</strong><small>${esc([r.kind,r.sub].filter(Boolean).join(' · '))}</small></button>`).join('');ls.hidden=!list.length;
+  ls.querySelectorAll('[data-ri]').forEach(b=>b.onclick=()=>pickResult(+b.dataset.ri))}
+ fitPts(list.map(r=>[r.lat,r.lng]),16)}
+function pickResult(i){const r=RES[i];if(!r)return;resSel=i;const ls=$('#resList');if(ls)ls.hidden=true;setView(r.lat,r.lng,16);resCard(i)}
+function resCard(i){const r=RES[i];if(!r)return;
+ resMk.forEach((m,k)=>{const el=MK==='ml'?m.getElement():m.getElement&&m.getElement();if(el)el.classList.toggle('on',k===i)});
+ const c=$('#resCard');if(!c)return;c.hidden=false;
+ const known=S.spots.find(s=>s.lat!=null&&Math.abs(s.lat-r.lat)<.0003&&Math.abs(s.lng-r.lng)<.0003);
+ c.innerHTML=`<button class="res-x" id="resX" aria-label="Schließen">×</button><strong>${esc(r.name)}</strong><small>${esc([r.kind,r.sub].filter(Boolean).join(' · '))}</small>
+  ${known?`<div class="res-acts"><button class="btn" id="resOpen">Schon bei euch: ansehen</button></div>`:`<div class="res-acts"><button class="btn pink" data-add="visited">Waren wir</button><button class="btn" data-add="want">${heartSvg.replace('<svg','<svg width="14" height="14" style="color:var(--pink-deep);vertical-align:-2px"')} Wollen wir hin</button></div>`}
+  <a class="link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name+' '+r.sub)}" target="_blank" rel="noopener">In Google Maps ansehen ↗</a>`;
+ c.querySelector('#resX').onclick=()=>{c.hidden=true};
+ const op=c.querySelector('#resOpen');if(op)op.onclick=()=>{foodSel=known.id;clearResults();renderFood()};
+ c.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>spotSheet(null,r.lat,r.lng,false,{name:r.name,kind:r.kind,status:b.dataset.add}))}
 function renderFood(){
  const shown=shownSpots();
  if(!shown.find(s=>s.id===foodSel))foodSel=shown.length?[...shown].sort((a,b)=>(lastVisit(b)||'').localeCompare(lastVisit(a)||''))[0].id:null;
@@ -2172,38 +2248,44 @@ function renderFood(){
  <div class="page-head"><div><h2>Foodspots</h2><p>${nV} Orte, an denen ihr wart · ${nW} auf eurer Merkliste</p></div><button class="btn pink" id="addSpot">+ Spot</button></div>
  <div class="fs-bar"><div class="seg" role="group" aria-label="Ansicht"><button data-view="map" aria-pressed="${foodView==='map'}">Karte</button><button data-view="list" aria-pressed="${foodView==='list'}">Liste</button></div>
   <div class="fs-filter" role="group" aria-label="Filter">${[['all','Alle'],['visited','Waren wir'],['want','Wollen wir hin']].map(([k,l])=>`<button data-filter="${k}" aria-pressed="${foodFilter===k}">${l}</button>`).join('')}</div></div>
- ${foodView==='map'?`${placing?`<div class="card find"><div class="row-between"><strong>Neuer Spot</strong><button class="link" id="cancelPlace">Abbrechen</button></div>
-   <form class="find-row" id="findForm"><input id="findQ" placeholder="Name oder Adresse, z. B. Café Milchbart Köln" autocomplete="off" aria-label="Ort suchen"><button class="btn pink" type="submit">Suchen</button></form>
-   <div id="findOut" class="find-out"></div><small class="muted">Oder tippe auf der Karte genau auf die Stelle.</small></div>`:''}
-  <div class="card mapcard real"><div id="mapSlot" class="map-slot"></div><button class="map-loc" id="mapLoc" aria-label="Mein Standort"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button><button class="map-loc fit" id="mapFit" aria-label="Alle Spots zeigen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
+ ${foodView==='map'?`${placing?`<div class="place-banner2"><span>Such oben in der Karte nach dem Ort oder tippe genau auf die Stelle.</span><button class="link" id="cancelPlace">Abbrechen</button></div>`:''}
+  <div class="card mapcard real"><div id="mapSlot" class="map-slot"></div>
+   <form class="map-search" id="mapSearch" role="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/></svg><input id="mapQ" type="search" placeholder="Restaurant suchen" enterkeyhint="search" autocomplete="off" aria-label="Restaurant suchen"><button type="button" class="map-clr" id="mapClr" aria-label="Suche löschen" hidden>×</button></form>
+   <div id="resList" class="res-list" hidden></div><div id="resCard" class="res-card" hidden></div>
+   <button class="map-loc" id="mapLoc" aria-label="Mein Standort"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button><button class="map-loc fit" id="mapFit" aria-label="Alle Spots zeigen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
   <div class="fs-legend"><span><i class="lg-v"></i>Waren wir, mit eurer Wertung</span><span><i class="lg-w"></i>Wollen wir hin</span></div>
-  ${sel?spotCard(sel):`<div class="empty">${penguin()}<p>Noch keine Spots. Tippe auf „+ Spot“ und such euer Lieblingsrestaurant.</p></div>`}`
+  ${sel?spotCard(sel):`<div class="empty">${penguin()}<p>Noch keine Spots. Such oben in der Karte nach eurem Lieblingsrestaurant.</p></div>`}`
  :`${foodFilter!=='want'?`<div class="seg" role="group" aria-label="Sortieren"><button data-sort="score" aria-pressed="${foodSort==='score'}">Beste Wertung</button><button data-sort="date" aria-pressed="${foodSort==='date'}">Zuletzt</button><button data-sort="often" aria-pressed="${foodSort==='often'}">Am öftesten</button></div>`:''}
   <div class="card spot-list">${list.map(s=>{const want=s.status==='want';return `<button class="spot-row" data-show="${s.id}"><span style="min-width:0"><strong>${esc(s.name)}</strong><small>${esc(s.kind||'')}${s.kind?' · ':''}${'€'.repeat(s.price||0)}${s.price?' · ':''}${want?'Merkliste':(s.visits||[]).length+'× da'}</small></span>${want?`<span class="sc want">${heartSvg}</span>`:`<span class="sc">${scoreOf(s)?dec(Math.round(scoreOf(s)*10)/10):'–'}</span>`}</button>`}).join('')||'<p class="muted">Hier ist noch nichts.</p>'}</div>`}`;
  const P=$('#p-food');
  P.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{foodView=b.dataset.view;placing=false;renderFood()});
  P.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{foodFilter=b.dataset.filter;renderFood()});
  P.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{foodSort=b.dataset.sort;renderFood()});
- P.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{foodSel=b.dataset.show;foodView='map';renderFood();const sp=S.spots.find(x=>x.id===foodSel);if(sp&&LM&&sp.lat!=null)LM.setView([sp.lat,sp.lng],16)});
+ P.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{foodSel=b.dataset.show;foodView='map';renderFood();const sp=S.spots.find(x=>x.id===foodSel);if(sp&&sp.lat!=null)setTimeout(()=>setView(sp.lat,sp.lng,16),80)});
  P.querySelectorAll('[data-edit-spot]').forEach(b=>b.onclick=()=>spotSheet(S.spots.find(s=>s.id===b.dataset.editSpot)));
  P.querySelectorAll('[data-again]').forEach(b=>b.onclick=()=>{const s=S.spots.find(x=>x.id===b.dataset.again);const t=iso(new Date());s.visits=[...(s.visits||[]).filter(d=>d!==t),t];s.ex=false;save();renderFood();toast('Besuch eingetragen')});
  P.querySelectorAll('[data-been]').forEach(b=>b.onclick=()=>{const s=S.spots.find(x=>x.id===b.dataset.been);spotSheet(s,null,null,true)});
  $('#addSpot').onclick=()=>{foodView='map';placing=true;renderFood()};
+ if(view==='food'&&!MK)loadMapLib();
  const c=$('#cancelPlace');c&&(c.onclick=()=>{placing=false;renderFood()});
- const slot=$('#mapSlot');if(slot&&view==='food'){ensureMap();
-  if(!LM&&!window.L){slot.innerHTML='<p class="muted" style="padding:16px">Karte wird geladen …</p>';loadLeaflet().then(()=>{if($('#mapSlot'))renderFood()},()=>{const s2=$('#mapSlot');if(s2)s2.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden. Prüfe deine Internetverbindung.</p>'})}
-  else if(!LM){slot.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden.</p>'}
-  else{if(LMel.parentNode!==slot)slot.appendChild(LMel);LMel.classList.toggle('placing',placing);drawPins();
-   $('#mapLoc').onclick=locateMe;$('#mapFit').onclick=fitSpots}}
- const ff=$('#findForm');if(ff){$('#findQ').focus({preventScroll:true});ff.onsubmit=async e=>{e.preventDefault();const q=$('#findQ').value.trim();if(!q)return;const out=$('#findOut');out.innerHTML='<p class="muted" style="margin:0">Suche …</p>';
-  try{findRes=await findPlaces(q);out.innerHTML=findRes.length?findRes.map((x,i)=>{const l=placeLabel(x);return `<button class="find-item" data-fi="${i}"><strong>${esc(l.name)}</strong><small>${esc(l.sub)}</small></button>`}).join(''):'<p class="muted" style="margin:0">Nichts gefunden. Probier es mit Stadt dazu, z. B. „Name Köln“.</p>';
-   out.querySelectorAll('[data-fi]').forEach(b=>b.onclick=()=>{const x=findRes[+b.dataset.fi],l=placeLabel(x),lat=+x.lat,lng=+x.lon;placing=false;renderFood();if(LM)LM.setView([lat,lng],16);spotSheet(null,lat,lng,false,{name:l.name,kind:KIND_DE[x.type]||''})})}
-  catch(_){out.innerHTML='<p class="muted" style="margin:0">Die Suche hat gerade nicht geklappt. Tippe stattdessen auf die Karte.</p>'}}}
+ const slot=$('#mapSlot');if(slot&&view==='food'){
+  if(!MK){slot.innerHTML='<p class="muted" style="padding:16px">Karte wird geladen …</p>';loadMapLib().then(()=>{if($('#mapSlot'))renderFood()},()=>{const s2=$('#mapSlot');if(s2)s2.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden. Prüfe deine Internetverbindung.</p>'})}
+  else{ensureMap();if(MAPEL.parentNode!==slot)slot.appendChild(MAPEL);MAPEL.classList.toggle('placing',placing);drawPins();
+   if(MK==='ml'&&MAPEL.clientWidth)MAP.resize();
+   $('#mapLoc').onclick=locateMe;$('#mapFit').onclick=()=>{clearResults(true);fitSpots()}}
+  const q=$('#mapQ'),clr=$('#mapClr');q.value=lastQ;clr.hidden=!lastQ;
+  if(RES.length&&resSel!=null)resCard(resSel);
+  q.oninput=()=>{clr.hidden=!q.value};
+  clr.onclick=()=>{lastQ='';clearResults();q.focus()};
+  $('#mapSearch').onsubmit=async e=>{e.preventDefault();const v=q.value.trim();if(!v)return;q.blur();lastQ=v;const ls=$('#resList');ls.hidden=false;ls.innerHTML='<p class="muted res-msg">Suche …</p>';
+   try{await loadMapLib();const list=await searchFood(v);if(!list.length){ls.innerHTML='<p class="muted res-msg">Nichts gefunden. Probier einen anderen Namen oder zoom woanders hin.</p>';return}showResults(list)}
+   catch(_){ls.innerHTML='<p class="muted res-msg">Die Suche hat gerade nicht geklappt. Prüfe deine Internetverbindung.</p>'}};
+  if(placing)setTimeout(()=>q.focus(),50)}
 }
 function scoreIn(id,v){return `<div class="score-in" id="${id}" data-v="${v||0}">${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button type="button" data-i="${i}" aria-pressed="${i===v}">${i}</button>`).join('')}</div>`}
 function spotSheet(s,lat,lng,nowVisited,pre){
  const e=s||{name:pre?.name||'',kind:pre?.kind||'',status:'visited',price:0,visits:[iso(new Date())],me:0,partner:0,dishes:{me:'',partner:''},note:'',lat,lng};
- let status=nowVisited?'visited':e.status,price=e.price||0;
+ let status=nowVisited?'visited':(pre&&pre.status)||e.status,price=e.price||0;
  openSheet(`<h2>${nowVisited?'Wie war es?':s?'Spot bearbeiten':'Neuer Spot'}</h2>
   <div class="field"><label for="f-name">Name</label><input id="f-name" value="${esc(e.name)}" placeholder="z. B. Café Sonnenschein"></div>
   <div class="pick" id="f-status"><button type="button" data-st="visited" aria-pressed="${status==='visited'}">Waren wir</button><button type="button" data-st="want" aria-pressed="${status==='want'}">${heartSvg.replace('<svg','<svg width="14" height="14" style="color:var(--pink-deep)"')}Wollen wir hin</button></div>
@@ -2226,7 +2308,7 @@ function spotSheet(s,lat,lng,nowVisited,pre){
    const o={name,status,kind:sh.querySelector('#f-kind').value.trim(),price,note:sh.querySelector('#f-note').value.trim(),ex:false};
    if(status==='visited'){const d=sh.querySelector('#f-date').value||iso(new Date());const old=(e.visits||[]).slice().sort();if(s&&e.status==='visited'&&!nowVisited&&old.length)old.pop();o.visits=[...new Set([...old,d])];
     o.me=+sh.querySelector('#f-me').dataset.v;o.partner=+sh.querySelector('#f-pa').dataset.v;o.dishes={me:sh.querySelector('#f-dme').value.trim(),partner:sh.querySelector('#f-dpa').value.trim()}}
-   if(s)Object.assign(s,o);else{const n={id:uid(),lat:e.lat,lng:e.lng,by:'me',visits:[],me:0,partner:0,dishes:{me:'',partner:''},...o};S.spots.push(n);foodSel=n.id}
+   if(s)Object.assign(s,o);else{clearResults();lastQ='';const n={id:uid(),lat:e.lat,lng:e.lng,by:'me',visits:[],me:0,partner:0,dishes:{me:'',partner:''},...o};S.spots.push(n);foodSel=n.id}
    foodSel=s?s.id:foodSel;if(foodFilter!=='all'&&foodFilter!==status)foodFilter='all';save();renderFood();renderIdea();close();toast('Gespeichert')};
   const d=sh.querySelector('#f-del');if(d){let armed=false;d.onclick=()=>{if(!armed){armed=true;d.textContent='Wirklich löschen?';return}S.spots=S.spots.filter(x=>x.id!==s.id);foodSel=null;save();renderFood();close();toast('Gelöscht')}}
  });
@@ -2988,7 +3070,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610262218';
+ const APP_V='202610262234';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
