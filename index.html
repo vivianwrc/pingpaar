@@ -1039,6 +1039,10 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .res-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%}
 .res-top em{font-style:normal;font-size:12.5px;color:var(--muted);white-space:nowrap}
 .res-msg .link{font-weight:700;text-decoration:none}
+.visits{display:flex;flex-direction:column;gap:6px}
+.vrow{display:flex;gap:6px;align-items:center}
+.vrow input{flex:1;min-width:0}
+.vdel{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--paper);font-size:18px;line-height:1;color:var(--muted);flex:none}
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
  .top{padding-block:8px 4px}
@@ -2314,7 +2318,7 @@ function renderFood(){
 }
 function scoreIn(id,v){return `<div class="score-in" id="${id}" data-v="${v||0}">${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button type="button" data-i="${i}" aria-pressed="${i===v}">${i}</button>`).join('')}</div>`}
 function spotSheet(s,lat,lng,nowVisited,pre){
- const e=s||{name:pre?.name||'',kind:pre?.kind||'',status:'visited',price:0,visits:[iso(new Date())],me:0,partner:0,dishes:{me:'',partner:''},note:'',lat,lng};
+ const e=s||{name:pre?.name||'',kind:pre?.kind||'',status:'visited',price:0,visits:[],me:0,partner:0,dishes:{me:'',partner:''},note:'',lat,lng};
  let status=nowVisited?'visited':(pre&&pre.status)||e.status,price=e.price||0;
  openSheet(`<h2>${nowVisited?'Wie war es?':s?'Spot bearbeiten':'Neuer Spot'}</h2>
   <div class="field"><label for="f-name">Name</label><input id="f-name" value="${esc(e.name)}" placeholder="z. B. Café Sonnenschein"></div>
@@ -2322,7 +2326,7 @@ function spotSheet(s,lat,lng,nowVisited,pre){
   <div class="two"><div class="field"><label for="f-kind">Küche</label><input id="f-kind" value="${esc(e.kind)}" placeholder="Italienisch"></div>
    <div class="field"><span class="lbl">Preis</span><div class="pick price-pick" id="f-price">${[1,2,3,4].map(i=>`<button type="button" data-p="${i}" aria-pressed="${i===price}">${'€'.repeat(i)}</button>`).join('')}</div></div></div>
   <div id="f-visited" ${status==='visited'?'':'hidden'} class="fs-form">
-   <div class="field"><label for="f-date">Zuletzt da am</label><input id="f-date" type="date" value="${nowVisited?iso(new Date()):(lastVisit(e)||iso(new Date()))}"></div>
+   <div class="field"><span class="lbl">Wann wart ihr da?</span><div class="visits" id="f-visits"></div><button type="button" class="link" id="f-addv" style="align-self:flex-start">+ Weiteren Besuch eintragen</button></div>
    <div class="field"><span class="lbl">Wertung von ${esc(S.me.name)}</span>${scoreIn('f-me',e.me)}</div>
    <div class="field"><label for="f-dme">Was hast du gegessen?</label><input id="f-dme" value="${esc(e.dishes?.me||'')}" placeholder="z. B. Trüffel-Pasta"></div>
    <div class="field"><span class="lbl">Wertung von ${esc(S.partner.name)}</span>${scoreIn('f-pa',e.partner)}</div>
@@ -2332,11 +2336,17 @@ function spotSheet(s,lat,lng,nowVisited,pre){
   <div class="sheet-actions">${s?'<button class="btn danger" id="f-del">Löschen</button>':''}<button class="btn ghost" data-close>Abbrechen</button><button class="btn pink" id="f-save">Speichern</button></div>`,
  (sh,close)=>{
   sh.querySelector('#f-status').onclick=x=>{const b=x.target.closest('[data-st]');if(!b)return;status=b.dataset.st;sh.querySelectorAll('#f-status button').forEach(y=>y.setAttribute('aria-pressed',y===b));sh.querySelector('#f-visited').hidden=status!=='visited'};
+  let vis=(e.visits||[]).slice().sort();if(nowVisited||!vis.length)vis.push(iso(new Date()));
+  const vbox=sh.querySelector('#f-visits');
+  const drawV=()=>{vbox.innerHTML=vis.map((d,i)=>`<div class="vrow"><input type="date" value="${d}" max="${iso(new Date())}" data-vi="${i}" aria-label="Besuch ${i+1}">${vis.length>1?`<button type="button" class="vdel" data-vd="${i}" aria-label="Besuch entfernen">×</button>`:''}</div>`).join('')+`<small class="muted">${vis.length===1?'1 Besuch':vis.length+' Besuche'}</small>`;
+   vbox.querySelectorAll('[data-vi]').forEach(inp=>inp.onchange=()=>{vis[+inp.dataset.vi]=inp.value});
+   vbox.querySelectorAll('[data-vd]').forEach(b=>b.onclick=()=>{vis.splice(+b.dataset.vd,1);drawV()})};
+  drawV();sh.querySelector('#f-addv').onclick=()=>{vis.push(iso(new Date()));drawV()};
   sh.querySelector('#f-price').onclick=x=>{const b=x.target.closest('[data-p]');if(!b)return;price=+b.dataset.p===price?0:+b.dataset.p;sh.querySelectorAll('#f-price button').forEach(y=>y.setAttribute('aria-pressed',+y.dataset.p===price))};
   sh.querySelectorAll('.score-in').forEach(r=>r.onclick=x=>{const b=x.target.closest('button');if(!b)return;r.dataset.v=b.dataset.i;r.querySelectorAll('button').forEach(y=>y.setAttribute('aria-pressed',y===b))});
   sh.querySelector('#f-save').onclick=()=>{const name=sh.querySelector('#f-name').value.trim();if(!name){toast('Bitte einen Namen eingeben');return}
    const o={name,status,kind:sh.querySelector('#f-kind').value.trim(),price,note:sh.querySelector('#f-note').value.trim(),ex:false};
-   if(status==='visited'){const d=sh.querySelector('#f-date').value||iso(new Date());const old=(e.visits||[]).slice().sort();if(s&&e.status==='visited'&&!nowVisited&&old.length)old.pop();o.visits=[...new Set([...old,d])];
+   if(status==='visited'){o.visits=[...new Set(vis.filter(Boolean))].sort();if(!o.visits.length)o.visits=[iso(new Date())];
     o.me=+sh.querySelector('#f-me').dataset.v;o.partner=+sh.querySelector('#f-pa').dataset.v;o.dishes={me:sh.querySelector('#f-dme').value.trim(),partner:sh.querySelector('#f-dpa').value.trim()}}
    if(s)Object.assign(s,o);else{clearResults();lastQ='';const n={id:uid(),lat:e.lat,lng:e.lng,by:'me',visits:[],me:0,partner:0,dishes:{me:'',partner:''},...o};S.spots.push(n);foodSel=n.id}
    foodSel=s?s.id:foodSel;if(foodFilter!=='all'&&foodFilter!==status)foodFilter='all';save();renderFood();renderIdea();close();toast('Gespeichert')};
@@ -3100,7 +3110,7 @@ else{
  sb.auth.getSession().then(({data})=>{if(!data.session&&!recovering)showOnb('welcome')});
  window.addEventListener('pagehide',()=>{if(COUPLE)doPush().catch(()=>{})});
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- const APP_V='202610262240';
+ const APP_V='202610262249';
  const checkV=async()=>{try{const r=await fetch('version.txt?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.text()).trim();
   if(v&&v!==APP_V&&!document.querySelector('.upd')){const b=document.createElement('button');b.className='upd';b.textContent='Neue Version da · Tippen zum Aktualisieren';b.onclick=async()=>{b.textContent='Wird aktualisiert …';try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()};document.getElementById('app').appendChild(b)}}catch(_){}};
  setTimeout(checkV,4000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkV()});
