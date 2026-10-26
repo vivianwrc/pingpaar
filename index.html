@@ -16,6 +16,8 @@
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{height:100%}html{touch-action:manipulation;-webkit-text-size-adjust:100%}button,a,label,.story,.story *{touch-action:manipulation}.story{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}body{margin:0;font:14px/1.4 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
 </head>
 <body>
 
@@ -981,6 +983,28 @@ input[type=range]{accent-color:var(--ink);width:100%}
 @keyframes spOut{to{opacity:0;visibility:hidden}}
 
 @media (prefers-reduced-motion:reduce){.sp-a,.sp-b,.sp-wa,.sp-wb,.sp-heart,.sp-word{animation:none}}
+
+/* Echte Karte */
+.mapcard.real{padding:0;overflow:hidden;position:relative}
+.map-slot{height:min(58vh,420px)}
+.lmap{width:100%;height:100%;position:relative;z-index:0;background:#eef2f5;font-family:inherit}
+.lmap.placing{cursor:crosshair}
+.lpin{background:none;border:0}
+.lpin svg{display:block;filter:drop-shadow(0 2px 3px rgb(0 0 0 / .2))}
+.leaflet-control-attribution{font-size:10px}
+.leaflet-bar a{width:36px!important;height:36px!important;line-height:36px!important;font-size:20px!important;color:var(--ink)!important}
+.leaflet-bar{border:0!important;box-shadow:0 2px 10px rgb(59 54 64 / .18)!important;border-radius:12px!important;overflow:hidden}
+.map-loc{position:absolute;right:10px;bottom:28px;z-index:2;width:38px;height:38px;border:0;border-radius:12px;background:#fff;box-shadow:0 2px 10px rgb(59 54 64 / .18);display:grid;place-items:center;color:#4a90e2}
+.map-loc svg{width:20px;height:20px}
+.map-loc.fit{bottom:74px;color:var(--blue)}
+.find{display:flex;flex-direction:column;gap:10px;border-color:var(--pink)}
+.find-row{display:flex;gap:8px}
+.find-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;background:var(--bg);color:var(--ink)}
+.find-out{display:flex;flex-direction:column}
+.find-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 2px;color:var(--ink)}
+.find-item:last-child{border-bottom:0}
+.find-item small{color:var(--muted);font-size:13px}
+.spot-foot a.link{text-decoration:none;font-weight:700}
 
 /* Kleine Handys: Startseite ohne Scrollen (iPhone SE & Co.) */
 @media (max-height:740px){
@@ -2109,7 +2133,32 @@ function spotCard(s){
  <div class="fs-people">${person('me',S.me.name,s.me,s.dishes?.me)}${person('pa',S.partner.name,s.partner,s.dishes?.partner)}</div>
  <div class="fs-visits"><span>${n}× da gewesen${lv?' · zuletzt '+agoDays(lv):''}</span>${lv===iso(new Date())?'':`<button class="link" data-again="${s.id}">Heute wieder hier</button>`}</div>
  ${s.note?`<p class="note">${esc(s.note)}</p>`:''}
- <div class="spot-foot">${s.ex?'<span class="example">Beispiel</span>':'<span></span>'}<button class="btn" data-edit-spot="${s.id}">Bearbeiten</button></div></div>`}
+ <div class="spot-foot">${s.lat!=null?`<a class="link" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Route ↗</a>`:'<span></span>'}<button class="btn" data-edit-spot="${s.id}">Bearbeiten</button></div></div>`}
+/* ---- Echte Karte (Leaflet + OpenStreetMap) ---- */
+let LM=null,LMel=null,LMlayer=null,LMfit=false,meDot=null,findRes=[];
+const KIND_DE={restaurant:'Restaurant',cafe:'Café',fast_food:'Imbiss',bar:'Bar',pub:'Kneipe',ice_cream:'Eisdiele',bakery:'Bäckerei',biergarten:'Biergarten',food_court:'Food Court',confectionery:'Konditorei'};
+function pinHtml(s){const sel=foodSel===s.id,want=s.status==='want';
+ const fill=sel?'#3b3640':want?'#ffffff':'#b0656d',stroke=want&&!sel?'#b0656d':'#ffffff';
+ const inner=want?`<path transform="translate(-6.5 -29.6) scale(.54)" d="${heartPath}" fill="${sel?'#fbf7f2':'#b0656d'}"/>`
+  :`<text y="-19" text-anchor="middle" font-size="11" font-weight="700" font-family="Palatino,Georgia,serif" fill="${sel?'#fbf7f2':'#fff'}">${scoreOf(s)?dec(Math.round(scoreOf(s)*10)/10):'–'}</text>`;
+ return `<svg viewBox="-17 -40 34 44" width="${sel?40:34}" height="${sel?52:44}" aria-hidden="true"><ellipse cx="0" cy="1" rx="6" ry="2.2" fill="rgb(0 0 0 / .22)"/><path d="M0 0 C-4 -9 -13 -13 -13 -23 A13 13 0 1 1 13 -23 C13 -13 4 -9 0 0Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${inner}</svg>`}
+function ensureMap(){if(LM||typeof L==='undefined')return;LMel=document.createElement('div');LMel.className='lmap';
+ const c=CITIES[S.me.city]||[50.94,6.96];
+ LM=L.map(LMel,{zoomControl:false,attributionControl:true,tap:true}).setView(c,13);
+ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(LM);
+ L.control.zoom({position:'topright',zoomInTitle:'Hineinzoomen',zoomOutTitle:'Herauszoomen'}).addTo(LM);
+ LMlayer=L.layerGroup().addTo(LM);
+ LM.on('click',e=>{if(!placing)return;placing=false;renderFood();spotSheet(null,e.latlng.lat,e.latlng.lng)})}
+function drawPins(){if(!LM)return;LMlayer.clearLayers();shownSpots().forEach(s=>{if(s.lat==null||s.lng==null)return;const sel=foodSel===s.id;
+ const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'lpin',html:pinHtml(s),iconSize:sel?[40,52]:[34,44],iconAnchor:sel?[20,49]:[17,42]}),zIndexOffset:sel?1000:0,title:s.name,keyboard:true});
+ m.on('click',()=>{foodSel=s.id;renderFood()});LMlayer.addLayer(m)})}
+function fitSpots(){const pts=shownSpots().filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]);if(pts.length>1)LM.fitBounds(pts,{padding:[36,36],maxZoom:15});else if(pts.length===1)LM.setView(pts[0],15);else LM.setView(CITIES[S.me.city]||[50.94,6.96],13)}
+function locateMe(){if(!navigator.geolocation){toast('Dein Gerät kann den Standort nicht bestimmen.');return}toast('Standort wird gesucht …');
+ navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(meDot)meDot.remove();meDot=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#4a90e2',fillOpacity:1}).addTo(LM);LM.setView(ll,15)},
+  ()=>toast('Standort nicht erlaubt. Du kannst es in den Einstellungen deines Handys erlauben.'),{enableHighAccuracy:true,timeout:10000})}
+async function findPlaces(q){const b=LM?LM.getBounds():null;const vb=b?`&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`:'';
+ const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=de${vb}&q=${encodeURIComponent(q)}`);if(!r.ok)throw new Error('search');return r.json()}
+function placeLabel(x){const a=x.address||{};const street=[a.road,a.house_number].filter(Boolean).join(' ');const town=a.city||a.town||a.village||a.suburb||'';return {name:x.name||(x.display_name||'').split(',')[0],sub:[street,town].filter(Boolean).join(', ')||x.display_name}}
 function renderFood(){
  const shown=shownSpots();
  if(!shown.find(s=>s.id===foodSel))foodSel=shown.length?[...shown].sort((a,b)=>(lastVisit(b)||'').localeCompare(lastVisit(a)||''))[0].id:null;
@@ -2121,26 +2170,36 @@ function renderFood(){
  <div class="page-head"><div><h2>Foodspots</h2><p>${nV} Orte, an denen ihr wart · ${nW} auf eurer Merkliste</p></div><button class="btn pink" id="addSpot">+ Spot</button></div>
  <div class="fs-bar"><div class="seg" role="group" aria-label="Ansicht"><button data-view="map" aria-pressed="${foodView==='map'}">Karte</button><button data-view="list" aria-pressed="${foodView==='list'}">Liste</button></div>
   <div class="fs-filter" role="group" aria-label="Filter">${[['all','Alle'],['visited','Waren wir'],['want','Wollen wir hin']].map(([k,l])=>`<button data-filter="${k}" aria-pressed="${foodFilter===k}">${l}</button>`).join('')}</div></div>
- ${foodView==='map'?`<div class="card mapcard">${mapSvg()}${placing?'<div class="place-banner"><span>Tippe auf die Karte, wo der Spot ist</span><button id="cancelPlace">Abbrechen</button></div>':''}</div>
+ ${foodView==='map'?`${placing?`<div class="card find"><div class="row-between"><strong>Neuer Spot</strong><button class="link" id="cancelPlace">Abbrechen</button></div>
+   <form class="find-row" id="findForm"><input id="findQ" placeholder="Name oder Adresse, z. B. Café Milchbart Köln" autocomplete="off" aria-label="Ort suchen"><button class="btn pink" type="submit">Suchen</button></form>
+   <div id="findOut" class="find-out"></div><small class="muted">Oder tippe auf der Karte genau auf die Stelle.</small></div>`:''}
+  <div class="card mapcard real"><div id="mapSlot" class="map-slot"></div><button class="map-loc" id="mapLoc" aria-label="Mein Standort"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button><button class="map-loc fit" id="mapFit" aria-label="Alle Spots zeigen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
   <div class="fs-legend"><span><i class="lg-v"></i>Waren wir, mit eurer Wertung</span><span><i class="lg-w"></i>Wollen wir hin</span></div>
-  ${sel?spotCard(sel):`<div class="empty">${penguin()}<p>Noch keine Spots. Tippe auf „+ Spot“ und dann auf die Karte.</p></div>`}`
+  ${sel?spotCard(sel):`<div class="empty">${penguin()}<p>Noch keine Spots. Tippe auf „+ Spot“ und such euer Lieblingsrestaurant.</p></div>`}`
  :`${foodFilter!=='want'?`<div class="seg" role="group" aria-label="Sortieren"><button data-sort="score" aria-pressed="${foodSort==='score'}">Beste Wertung</button><button data-sort="date" aria-pressed="${foodSort==='date'}">Zuletzt</button><button data-sort="often" aria-pressed="${foodSort==='often'}">Am öftesten</button></div>`:''}
   <div class="card spot-list">${list.map(s=>{const want=s.status==='want';return `<button class="spot-row" data-show="${s.id}"><span style="min-width:0"><strong>${esc(s.name)}</strong><small>${esc(s.kind||'')}${s.kind?' · ':''}${'€'.repeat(s.price||0)}${s.price?' · ':''}${want?'Merkliste':(s.visits||[]).length+'× da'}</small></span>${want?`<span class="sc want">${heartSvg}</span>`:`<span class="sc">${scoreOf(s)?dec(Math.round(scoreOf(s)*10)/10):'–'}</span>`}</button>`}).join('')||'<p class="muted">Hier ist noch nichts.</p>'}</div>`}`;
  const P=$('#p-food');
  P.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{foodView=b.dataset.view;placing=false;renderFood()});
  P.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{foodFilter=b.dataset.filter;renderFood()});
  P.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{foodSort=b.dataset.sort;renderFood()});
- P.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{foodSel=b.dataset.show;foodView='map';renderFood();const sp=S.spots.find(x=>x.id===foodSel);if(sp){const [x,y]=G(sp.lat,sp.lng);flyTo(x,y,Math.max(3,zoomOf()))}});
+ P.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{foodSel=b.dataset.show;foodView='map';renderFood();const sp=S.spots.find(x=>x.id===foodSel);if(sp&&LM&&sp.lat!=null)LM.setView([sp.lat,sp.lng],16)});
  P.querySelectorAll('[data-edit-spot]').forEach(b=>b.onclick=()=>spotSheet(S.spots.find(s=>s.id===b.dataset.editSpot)));
  P.querySelectorAll('[data-again]').forEach(b=>b.onclick=()=>{const s=S.spots.find(x=>x.id===b.dataset.again);const t=iso(new Date());s.visits=[...(s.visits||[]).filter(d=>d!==t),t];s.ex=false;save();renderFood();toast('Besuch eingetragen')});
  P.querySelectorAll('[data-been]').forEach(b=>b.onclick=()=>{const s=S.spots.find(x=>x.id===b.dataset.been);spotSheet(s,null,null,true)});
  $('#addSpot').onclick=()=>{foodView='map';placing=true;renderFood()};
  const c=$('#cancelPlace');c&&(c.onclick=()=>{placing=false;renderFood()});
- bindMap((ux,uy,pin)=>{if(placing){placing=false;const lat=B.n-uy/MH*(B.n-B.s),lng=B.w+ux/MW*(B.e-B.w);renderFood();spotSheet(null,lat,lng);return}if(pin){foodSel=pin.dataset.pin;renderFood()}});
+ const slot=$('#mapSlot');if(slot){ensureMap();
+  if(!LM){slot.innerHTML='<p class="muted" style="padding:16px">Die Karte konnte nicht geladen werden. Prüfe deine Internetverbindung.</p>'}
+  else{slot.appendChild(LMel);LMel.classList.toggle('placing',placing);setTimeout(()=>{LM.invalidateSize();if(!LMfit){fitSpots();LMfit=true}},0);setTimeout(()=>LM.invalidateSize(),350);drawPins();
+   $('#mapLoc').onclick=locateMe;$('#mapFit').onclick=fitSpots}}
+ const ff=$('#findForm');if(ff){$('#findQ').focus({preventScroll:true});ff.onsubmit=async e=>{e.preventDefault();const q=$('#findQ').value.trim();if(!q)return;const out=$('#findOut');out.innerHTML='<p class="muted" style="margin:0">Suche …</p>';
+  try{findRes=await findPlaces(q);out.innerHTML=findRes.length?findRes.map((x,i)=>{const l=placeLabel(x);return `<button class="find-item" data-fi="${i}"><strong>${esc(l.name)}</strong><small>${esc(l.sub)}</small></button>`}).join(''):'<p class="muted" style="margin:0">Nichts gefunden. Probier es mit Stadt dazu, z. B. „Name Köln“.</p>';
+   out.querySelectorAll('[data-fi]').forEach(b=>b.onclick=()=>{const x=findRes[+b.dataset.fi],l=placeLabel(x),lat=+x.lat,lng=+x.lon;placing=false;renderFood();if(LM)LM.setView([lat,lng],16);spotSheet(null,lat,lng,false,{name:l.name,kind:KIND_DE[x.type]||''})})}
+  catch(_){out.innerHTML='<p class="muted" style="margin:0">Die Suche hat gerade nicht geklappt. Tippe stattdessen auf die Karte.</p>'}}}
 }
 function scoreIn(id,v){return `<div class="score-in" id="${id}" data-v="${v||0}">${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button type="button" data-i="${i}" aria-pressed="${i===v}">${i}</button>`).join('')}</div>`}
-function spotSheet(s,lat,lng,nowVisited){
- const e=s||{name:'',kind:'',status:'visited',price:0,visits:[iso(new Date())],me:0,partner:0,dishes:{me:'',partner:''},note:'',lat,lng};
+function spotSheet(s,lat,lng,nowVisited,pre){
+ const e=s||{name:pre?.name||'',kind:pre?.kind||'',status:'visited',price:0,visits:[iso(new Date())],me:0,partner:0,dishes:{me:'',partner:''},note:'',lat,lng};
  let status=nowVisited?'visited':e.status,price=e.price||0;
  openSheet(`<h2>${nowVisited?'Wie war es?':s?'Spot bearbeiten':'Neuer Spot'}</h2>
   <div class="field"><label for="f-name">Name</label><input id="f-name" value="${esc(e.name)}" placeholder="z. B. Café Sonnenschein"></div>
