@@ -2,7 +2,7 @@
 // App-Dateien kommen sofort aus dem Speicher; im Hintergrund wird die neueste Version geladen
 // und beim nächsten Öffnen angezeigt. Datenbank, Karte und Suche laufen immer übers Internet.
 // Außerdem: Benachrichtigungen anzeigen (z. B. „… hat dir Herzen geschickt“).
-const CACHE = 'pingpaar-v3';
+const CACHE = 'pingpaar-v4';
 const CORE = ['./', './index.html', './config.js', './vendor/supabase.js', './vendor/leaflet.css', './manifest.webmanifest', './icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -16,6 +16,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // Supabase, Karte, Suche: nie zwischenspeichern
+  if (url.pathname.endsWith('/pebble-rettung.html')) return; // Pebble-Rettungsseite: nie abfangen
   e.respondWith(caches.open(CACHE).then(async c => {
     const key = req.mode === 'navigate' ? './index.html' : req;
     const hit = await c.match(key, { ignoreSearch: req.mode === 'navigate' });

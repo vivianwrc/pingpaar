@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pebble Town – Spielstand retten</title>
+<style>
+  :root{--bg:#f5efe6;--card:#fffaf3;--ink:#3b2f2a;--soft:#7a6a60;--acc:#e07a5f;--ok:#4f8a5b;--line:#e6d9c8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px}
+  main{max-width:640px;margin:0 auto}
+  h1{font-size:1.5rem;margin:.2em 0 .3em}
+  p{margin:.4em 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:12px 0}
+  .card h3{margin:0 0 4px;font-size:1.05rem}
+  .sum{color:var(--soft);font-size:.92rem}
+  .best{border:2px solid var(--ok)}
+  .tag{display:inline-block;background:var(--ok);color:#fff;border-radius:99px;padding:1px 8px;font-size:.78rem;margin-left:6px;vertical-align:middle}
+  button{font:inherit;border:0;border-radius:12px;padding:10px 14px;margin:8px 8px 0 0;cursor:pointer;background:var(--acc);color:#fff}
+  button.soft{background:#ebe0d2;color:var(--ink)}
+  input{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-top:6px;background:#fff;color:var(--ink)}
+  .msg{padding:10px 12px;border-radius:10px;margin-top:10px;font-size:.95rem}
+  .msg.ok{background:#e3f1e5}.msg.err{background:#f9e0da}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Pebble Town – Spielstand retten</h1>
+  <p>Diese Seite findet Pebble-Spielstände, die noch von der alten Adresse <b>vivianwrc.github.io/pebble</b> in diesem Browser gespeichert sind, und schreibt sie zurück in dein Online-Konto. Danach sind sie auf <b>pebbletown.de</b> wieder da.</p>
+  <p class="sum">Wichtig: Öffne diese Seite auf dem Gerät und in dem Browser, mit dem du früher gespielt hast.</p>
+  <div id="list"></div>
+</main>
+<script src="vendor/supabase.js"></script>
+<script>
+(function(){
+  const URL_='https://cddsmuuqqcyvnvqnkfpf.supabase.co', KEY='sb_publishable_h9uB8DK_I0s9ehlK5CDHyA_swb8O4QW';
+  const $list=document.getElementById('list');
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const read=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(_){return null}};
+  const fmt=t=>t?new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'unbekannt';
+  const sum=sv=>{try{return {items:(sv.items||[]).filter(i=>i.room).length,rooms:Object.keys(sv.layout||{}).length,xp:sv.xp|0}}catch(_){return {items:0,rooms:0,xp:0}}};
+  const sumTxt=sv=>{const s=sum(sv);return `${s.items} Möbel aufgestellt · ${s.rooms} Räume · ${s.xp} XP · zuletzt geändert ${fmt(sv&&sv.upd)}`};
+
+  const accs=read('pinguin-konten-v2')||{};
+  const baks=read('pebble_backups')||[];
+  const C=[];
+  for(const k of Object.keys(accs)){const a=accs[k];if(a&&a.save&&a.save.layout)C.push({name:a.name||k,mail:a.mail||'',save:a.save,label:'Spielstand von '+(a.name||k),why:'gespeichert auf diesem Gerät'})}
+  for(const b of baks){let sv=null;try{sv=JSON.parse(b.js)}catch(_){}if(!sv||!sv.layout)continue;
+    const a=Object.values(accs).find(x=>x&&String(x.name).toLowerCase()===String(b.name).toLowerCase());
+    C.push({name:b.name||'',mail:(a&&a.mail)||'',save:sv,label:'Sicherung von '+(b.name||'?'),why:(b.why||'Sicherung')+', '+fmt(b.t)})}
+
+  if(!C.length){$list.innerHTML='<div class="card"><h3>Hier ist kein alter Spielstand gespeichert</h3><p>In diesem Browser liegen keine Pebble-Spielstände von der alten Adresse. Öffne diese Seite auf dem Gerät und im Browser, mit dem du vorher gespielt hast (zum Beispiel auf dem Handy in Safari oder Chrome).</p></div>';return}
+
+  /* pro Spieler den Stand mit den meisten Möbeln markieren */
+  const bestBy={};C.forEach((c,i)=>{const n=c.name.toLowerCase(),s=sum(c.save);if(bestBy[n]==null||s.items>sum(C[bestBy[n]].save).items||(s.items===sum(C[bestBy[n]].save).items&&(c.save.upd||0)>(C[bestBy[n]].save.upd||0)))bestBy[n]=i});
+  const order=C.map((c,i)=>i).sort((a,b)=>{const ba=Object.values(bestBy).includes(a),bb=Object.values(bestBy).includes(b);if(ba!==bb)return ba?-1:1;return sum(C[b].save).items-sum(C[a].save).items});
+
+  $list.innerHTML=order.map(i=>{const c=C[i],best=Object.values(bestBy).includes(i);return `<div class="card${best?' best':''}" data-i="${i}">
+    <h3>${esc(c.label)}${best?'<span class="tag">größter Stand</span>':''}</h3>
+    <div class="sum">${esc(sumTxt(c.save))}</div><div class="sum">${esc(c.why)}${c.mail?' · Konto '+esc(c.mail):''}</div>
+    <button type="button" data-act="open">In mein Online-Konto übernehmen</button><button type="button" class="soft" data-act="dl">Als Datei sichern</button>
+    <div class="form hide"><p class="sum" style="margin-top:10px">Melde dich mit deinem Pebble-Konto an, dann wird dieser Stand dein Online-Spielstand.</p>
+      <input type="email" placeholder="E-Mail-Adresse" value="${esc(c.mail)}" data-f="mail" autocomplete="username">
+      <input type="password" placeholder="Passwort" data-f="pw" autocomplete="current-password">
+      <button type="button" data-act="go">Jetzt übernehmen</button></div>
+    <div class="out"></div></div>`}).join('');
+
+  const sb=window.supabase.createClient(URL_,KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'pebble-rettung'}});
+  const msg=(card,t,ok)=>{card.querySelector('.out').innerHTML=`<div class="msg ${ok?'ok':'err'}">${t}</div>`};
+
+  $list.addEventListener('click',async e=>{const btn=e.target.closest('button');if(!btn)return;const card=btn.closest('.card'),c=C[+card.dataset.i];
+    if(btn.dataset.act==='dl'){const blob=new Blob([JSON.stringify(c.save)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pebble-'+(c.name||'spielstand').toLowerCase()+'-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();return}
+    if(btn.dataset.act==='open'){card.querySelector('.form').classList.remove('hide');btn.classList.add('hide');(card.querySelector('[data-f=mail]').value?card.querySelector('[data-f=pw]'):card.querySelector('[data-f=mail]')).focus();return}
+    if(btn.dataset.act!=='go')return;
+    const mail=card.querySelector('[data-f=mail]').value.trim(),pw=card.querySelector('[data-f=pw]').value;
+    if(!mail||!pw){msg(card,'Bitte E-Mail und Passwort eingeben.');return}
+    btn.disabled=true;btn.textContent='Einen Moment …';
+    try{
+      const {data:au,error:le}=await sb.auth.signInWithPassword({email:mail,password:pw});
+      if(le||!au||!au.user){msg(card,'Anmelden hat nicht geklappt. Prüf E-Mail und Passwort.');return}
+      const uid=au.user.id;
+      const {data:row}=await sb.from('pebble_saves').select('name,data,updated_at').eq('user_id',uid).maybeSingle();
+      if(row&&row.data){try{localStorage.setItem('pebble_rettung_online_'+uid,JSON.stringify(row))}catch(_){}
+        const s=sum(row.data),n=sum(c.save);
+        if(!confirm(`Online liegt gerade: ${s.items} Möbel, ${s.rooms} Räume, ${s.xp} XP.\nDieser Stand hat: ${n.items} Möbel, ${n.rooms} Räume, ${n.xp} XP.\n\nOnline-Stand durch diesen ersetzen?`)){msg(card,'Nichts geändert.');return}}
+      const data=JSON.parse(JSON.stringify(c.save));delete data.syncBase;data.upd=Date.now();
+      const name=(row&&row.name)||c.name||mail.split('@')[0];
+      const {error:ue}=await sb.from('pebble_saves').upsert({user_id:uid,name,data,updated_at:new Date().toISOString()});
+      if(ue){msg(card,'Speichern hat nicht geklappt: '+esc(ue.message));return}
+      await sb.auth.signOut();
+      msg(card,'Geschafft! Der Spielstand ist jetzt online. Öffne <a href="https://pebbletown.de/">pebbletown.de</a> (oder lade die Seite dort neu). Falls gefragt wird, welchen Spielstand du behalten möchtest, tipp auf <b>„Online gespeichert (anderes Gerät)“</b>.',true);
+      card.querySelector('.form').classList.add('hide');
+    }catch(err){msg(card,'Das hat nicht geklappt: '+esc(err&&err.message||err))}
+    finally{btn.disabled=false;btn.textContent='Jetzt übernehmen'}
+  });
+})();
+</script>
+</body>
+</html>
